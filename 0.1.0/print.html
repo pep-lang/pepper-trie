@@ -1,0 +1,959 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>trie</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">trie</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <!-- Generated from pep.toml by `pep-doc package`. Do not edit. -->
+<h1 id="trie-010"><a class="header" href="#trie-010">trie 0.1.0</a></h1>
+<p>Compact tries: a static code point trie for Unicode tables, and a HAT-trie map from strings</p>
+<h2 id="pages"><a class="header" href="#pages">Pages</a></h2>
+<ul>
+<li><a href="module.html">trie</a>: Compact tries: <code>StaticTrie&lt;T&gt;</code>, an immutable map from Unicode code points to small integers that a program holds as static data, and its <code>StaticTrieBuilder</code>, which a table generator runs.</li>
+<li><a href="hat_trie_map.html">hat_trie_map.pep</a>: <code>HatTrieMap&lt;T&gt;</code>: a map from <code>String</code> keys to values, kept in key order, after Askitis and Sinha's HAT-trie.</li>
+<li><a href="hat_trie_set.html">hat_trie_set.pep</a>: <code>HatTrieSet</code>: a set of <code>String</code>s kept in order, a <code>HatTrieMap</code> with no values.</li>
+<li><a href="static_trie.html">static_trie.pep</a>: <code>StaticTrie&lt;T&gt;</code>: an immutable map from integer keys, 0 to <code>MAX_KEY</code>, to small integers, read from data that <code>StaticTrieBuilder</code> made.</li>
+<li><a href="static_trie_builder.html">static_trie_builder.pep</a>: <code>StaticTrieBuilder</code>: builds a <code>StaticTrie</code> from key ranges and their values, in a build script or a generator, and writes it as Pepper source.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated from module.pep by `pep-doc package`. Do not edit. -->
+<h1 id="trie"><a class="header" href="#trie">trie</a></h1>
+<p>Compact tries: <code>StaticTrie&lt;T&gt;</code>, an immutable map from Unicode code
+points to small integers that a program holds as static data, and its
+<code>StaticTrieBuilder</code>, which a table generator runs.</p>
+<p>Bring it in with <code>import trie</code>.</p>
+<ul>
+<li><code>StaticTrieBuilder</code>: set values for code points and ranges, <code>build</code>
+the data, and write it with <code>StaticTrieData.source</code> as a <code>const</code></li>
+<li><code>StaticTrie&lt;T&gt;</code>: reads a code point's value in O(1), with no
+allocation</li>
+</ul>
+<p><strong>Example</strong></p>
+<pre><code class="language-pepper">import trie;
+
+main(): int {
+    var builder = trie.StaticTrieBuilder(1);
+    builder.set_range(0x4E00, 0x9FFF, 2);
+    var widths = builder.build().reader&lt;u8&gt;();
+    print(widths.get(0x4E2D));   # 2
+    return 0;
+}
+</code></pre>
+<p>Source: <code>module.pep</code></p>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated from hat_trie_map.pep by `pep-doc package`. Do not edit. -->
+<h1 id="hat_trie_mappep"><a class="header" href="#hat_trie_mappep">hat_trie_map.pep</a></h1>
+<p><code>HatTrieMap&lt;T&gt;</code>: a map from <code>String</code> keys to values, kept in key order, after
+Askitis and Sinha's HAT-trie.</p>
+<p>Source: <code>hat_trie_map.pep</code></p>
+<h2 id="default_burst_threshold"><a class="header" href="#default_burst_threshold">DEFAULT_BURST_THRESHOLD</a></h2>
+<pre><code class="language-pepper">const DEFAULT_BURST_THRESHOLD: ulong = 16384
+</code></pre>
+<p>How many keys a container holds before <code>HatTrieMap</code> bursts it into a trie
+node, unless the trie is made with another threshold.</p>
+<h2 id="hattriemap"><a class="header" href="#hattriemap">HatTrieMap</a></h2>
+<pre><code class="language-pepper">struct HatTrieMap&lt;T&gt;
+</code></pre>
+<p>A map from <code>String</code> keys to values of type <code>T</code> that keeps its keys in
+byte order (code point order, for valid UTF-8), after the HAT-trie of
+Askitis and Sinha: a trie whose leaves are array hash tables
+("containers") that hold the rest of each key below them.</p>
+<p>A container packs its keys into a few byte arrays, with no object per
+key, so the map takes much less memory than a <code>HashMap&lt;String, T&gt;</code> of the
+same keys. When a container holds more than the burst threshold of keys,
+it bursts: it becomes a trie node, and its keys move to a new container
+per first byte, without that byte. Lookups hash in one container after
+walking the trie, so they cost about as much as a hash map's; iterating
+in order sorts each container as it reaches it, and a prefix search
+(<code>with_prefix</code>) walks to the prefix and visits only what is under it.</p>
+<p>Keys are compared as bytes. The map holds a reference to each value; it
+does not keep the key objects, only their bytes, so a key given to
+<code>insert</code> may be changed afterwards.</p>
+<p><strong>Type parameters</strong></p>
+<ul>
+<li><code>T</code> — the value type</li>
+</ul>
+<p><strong>Example</strong></p>
+<pre><code class="language-pepper">import trie;
+
+main(): int {
+    var words = trie.HatTrieMap&lt;int&gt;();
+    words["pepper"] = 1;
+    words["pear"] = 2;
+    words["apple"] = 3;
+    for (var (word, n) in words.with_prefix("pe")) {
+        print($"{word} {n}");   # pear 2, then pepper 1
+    }
+    return 0;
+}
+</code></pre>
+<h3 id="properties"><a class="header" href="#properties">Properties</a></h3>
+<h4 id="count"><a class="header" href="#count">count</a></h4>
+<pre><code class="language-pepper">var count: ulong { get; }
+</code></pre>
+<p>The number of keys.</p>
+<h4 id="is_empty"><a class="header" href="#is_empty">is_empty</a></h4>
+<pre><code class="language-pepper">var is_empty: bool { get; }
+</code></pre>
+<p>Whether the trie has no keys.</p>
+<h3 id="constructor"><a class="header" href="#constructor">Constructor</a></h3>
+<h4 id="hattriemap-1"><a class="header" href="#hattriemap-1">HatTrieMap()</a></h4>
+<pre><code class="language-pepper">construct(burst_threshold: ulong = DEFAULT_BURST_THRESHOLD)
+</code></pre>
+<p>Makes an empty trie.</p>
+<p>A lower <code>burst_threshold</code> makes more, smaller containers: in-order
+and prefix iteration sort less at a time, at the cost of more trie
+nodes (2 KB each). Tessil's hat-trie suggests 1024 or less when
+iteration matters more than lookups.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>burst_threshold</code> — how many keys a container holds before it bursts; at least 4</li>
+</ul>
+<p><strong>Panics</strong></p>
+<ul>
+<li>if <code>burst_threshold</code> is below 4</li>
+</ul>
+<h3 id="methods"><a class="header" href="#methods">Methods</a></h3>
+<h4 id="insert"><a class="header" href="#insert">insert</a></h4>
+<pre><code class="language-pepper">insert(key: String, value: T): bool
+</code></pre>
+<p>Adds <code>key</code> with <code>value</code>, or replaces the value of <code>key</code> when it is
+already there.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the key; its bytes are copied</li>
+<li><code>value</code> — the value to store for <code>key</code></li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>true when <code>key</code> was added, false when its value was replaced</li>
+</ul>
+<h4 id="get"><a class="header" href="#get">get</a></h4>
+<pre><code class="language-pepper">get(key: String): T
+</code></pre>
+<p>Returns the value of <code>key</code>, or the default of <code>T</code> (0, or a null
+reference) when it is not there.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the key to look up</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>the value, or the default of <code>T</code></li>
+</ul>
+<h4 id="try_get"><a class="header" href="#try_get">try_get</a></h4>
+<pre><code class="language-pepper">try_get(key: String): T?
+</code></pre>
+<p>Returns the value of <code>key</code>, or none when it is not there.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the key to look up</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>the value, or none</li>
+</ul>
+<h4 id="contains"><a class="header" href="#contains">contains</a></h4>
+<pre><code class="language-pepper">contains(key: String): bool
+</code></pre>
+<p>Whether <code>key</code> is in the trie.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the key to look for</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>true when it is there</li>
+</ul>
+<h4 id="operator-"><a class="header" href="#operator-">operator []</a></h4>
+<pre><code class="language-pepper">[](key: String): T
+</code></pre>
+<p>Reads <code>trie[key]</code>: the same as <code>get</code>.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the key to look up</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>the value, or the default of <code>T</code></li>
+</ul>
+<h4 id="operator--1"><a class="header" href="#operator--1">operator []</a></h4>
+<pre><code class="language-pepper">[](key: String, value: T): T
+</code></pre>
+<p>Writes <code>trie[key] = value</code>: the same as <code>insert</code>.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the key</li>
+<li><code>value</code> — the value to store for it</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li><code>value</code></li>
+</ul>
+<h4 id="remove"><a class="header" href="#remove">remove</a></h4>
+<pre><code class="language-pepper">remove(key: String): bool
+</code></pre>
+<p>Removes <code>key</code> and releases its value. Trie nodes stay when their keys
+go; only <code>clear</code> gives their memory back.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the key to remove</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>true when <code>key</code> was there</li>
+</ul>
+<h4 id="clear"><a class="header" href="#clear">clear</a></h4>
+<pre><code class="language-pepper">clear()
+</code></pre>
+<p>Removes every key.</p>
+<h4 id="iterate"><a class="header" href="#iterate">iterate</a></h4>
+<pre><code class="language-pepper">iterate(): HatTrieMapIterator&lt;T&gt;
+</code></pre>
+<p>Returns an iterator over the entries as <code>(key, value)</code> tuples, in key
+order; <code>for (var (key, value) in trie)</code> drives it.</p>
+<p>Each container is sorted when the iterator reaches it, which costs
+O(n log n) for its n keys. Adding or removing a key makes the
+iterator's next <code>next()</code> panic.</p>
+<p><strong>Returns</strong></p>
+<ul>
+<li>an iterator positioned before the first entry</li>
+</ul>
+<h4 id="with_prefix"><a class="header" href="#with_prefix">with_prefix</a></h4>
+<pre><code class="language-pepper">with_prefix(prefix: String): HatTrieMapIterator&lt;T&gt;
+</code></pre>
+<p>Returns an iterator over the entries whose key starts with <code>prefix</code>,
+in key order. It walks the trie to <code>prefix</code>, so it visits only the
+keys under it, plus the rest of one container when <code>prefix</code> ends
+inside one.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>prefix</code> — the bytes every key visited starts with; <code>""</code> visits all</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>an iterator positioned before the first such entry</li>
+</ul>
+<p><strong>Example</strong></p>
+<pre><code class="language-pepper">var n = 0;
+for (var (key, value) in trie.with_prefix("app")) {
+    n += 1;
+}
+</code></pre>
+<h2 id="hattriemapiterator"><a class="header" href="#hattriemapiterator">HatTrieMapIterator</a></h2>
+<pre><code class="language-pepper">struct HatTrieMapIterator&lt;T&gt;
+</code></pre>
+<p>An <code>Iterator&lt;(String, T)&gt;</code> over a <code>HatTrieMap</code>'s entries in key order;
+returned by <code>HatTrieMap.iterate</code> and <code>HatTrieMap.with_prefix</code>.</p>
+<p>It holds a reference to the trie and fails fast: adding or removing a key
+after it was made makes its next <code>next()</code> or <code>current()</code> panic.</p>
+<p><strong>Type parameters</strong></p>
+<ul>
+<li><code>T</code> — the trie's value type</li>
+</ul>
+<h3 id="constructor-1"><a class="header" href="#constructor-1">Constructor</a></h3>
+<h4 id="hattriemapiterator-1"><a class="header" href="#hattriemapiterator-1">HatTrieMapIterator()</a></h4>
+<pre><code class="language-pepper">construct(trie: HatTrieMap&lt;T&gt;, start: _HatNode&lt;T&gt;, path: u8[], prefix: String, depth: ulong)
+</code></pre>
+<p>Makes an iterator over the keys under <code>start</code>, which <code>path</code> leads to,
+that start with <code>prefix</code>'s bytes from <code>depth</code> on. <code>HatTrieMap.iterate</code>
+and <code>HatTrieMap.with_prefix</code> call it.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>trie</code> — the trie</li>
+<li><code>start</code> — the node to start at; null for no entries</li>
+<li><code>path</code> — the bytes that lead to <code>start</code></li>
+<li><code>prefix</code> — the prefix searched for</li>
+<li><code>depth</code> — how many of <code>prefix</code>'s bytes <code>path</code> holds</li>
+</ul>
+<h3 id="methods-1"><a class="header" href="#methods-1">Methods</a></h3>
+<h4 id="next"><a class="header" href="#next">next</a></h4>
+<pre><code class="language-pepper">next(): bool
+</code></pre>
+<p>Advances to the next entry.</p>
+<p><strong>Returns</strong></p>
+<ul>
+<li>true when there is a current entry, false once every entry was visited</li>
+</ul>
+<p><strong>Panics</strong></p>
+<ul>
+<li>if a key was added or removed since the iterator was made ("HatTrieMap modified during iteration")</li>
+</ul>
+<h4 id="current"><a class="header" href="#current">current</a></h4>
+<pre><code class="language-pepper">current(): (String, T)
+</code></pre>
+<p>Returns the entry the last successful <code>next()</code> moved to.</p>
+<p><strong>Returns</strong></p>
+<ul>
+<li>the current entry as a <code>(key, value)</code> tuple</li>
+</ul>
+<p><strong>Panics</strong></p>
+<ul>
+<li>if a key was added or removed since the iterator was made ("HatTrieMap modified during iteration")</li>
+<li>if <code>next()</code> was not called or returned false ("HatTrieMapIterator.current() without an entry")</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated from hat_trie_set.pep by `pep-doc package`. Do not edit. -->
+<h1 id="hat_trie_setpep"><a class="header" href="#hat_trie_setpep">hat_trie_set.pep</a></h1>
+<p><code>HatTrieSet</code>: a set of <code>String</code>s kept in order, a <code>HatTrieMap</code> with no
+values.</p>
+<p>Source: <code>hat_trie_set.pep</code></p>
+<h2 id="hattrieset"><a class="header" href="#hattrieset">HatTrieSet</a></h2>
+<pre><code class="language-pepper">struct HatTrieSet
+</code></pre>
+<p>A set of <code>String</code>s that keeps them in byte order (code point order, for
+valid UTF-8): a <code>HatTrieMap</code> whose values take no room, as Tessil's
+<code>htrie_set</code> is to <code>htrie_map</code>. It packs the strings into the containers'
+byte arrays, with no object per string, so it takes much less memory than
+a <code>HashSet&lt;String&gt;</code>, and finds every string with a prefix by walking to
+it (<code>with_prefix</code>).</p>
+<p><strong>Example</strong></p>
+<pre><code class="language-pepper">import trie;
+
+main(): int {
+    var words = trie.HatTrieSet();
+    words.insert("pepper");
+    words.insert("pear");
+    words.insert("apple");
+    for (var word in words.with_prefix("pe")) {
+        print(word);   # pear, then pepper
+    }
+    return 0;
+}
+</code></pre>
+<h3 id="properties-1"><a class="header" href="#properties-1">Properties</a></h3>
+<h4 id="count-1"><a class="header" href="#count-1">count</a></h4>
+<pre><code class="language-pepper">var count: ulong { get; }
+</code></pre>
+<p>The number of strings.</p>
+<h4 id="is_empty-1"><a class="header" href="#is_empty-1">is_empty</a></h4>
+<pre><code class="language-pepper">var is_empty: bool { get; }
+</code></pre>
+<p>Whether the set has no strings.</p>
+<h3 id="constructor-2"><a class="header" href="#constructor-2">Constructor</a></h3>
+<h4 id="hattrieset-1"><a class="header" href="#hattrieset-1">HatTrieSet()</a></h4>
+<pre><code class="language-pepper">construct(burst_threshold: ulong = DEFAULT_BURST_THRESHOLD)
+</code></pre>
+<p>Makes an empty set.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>burst_threshold</code> — how many strings a container holds before it bursts; at least 4 (see <code>HatTrieMap</code>)</li>
+</ul>
+<p><strong>Panics</strong></p>
+<ul>
+<li>if <code>burst_threshold</code> is below 4</li>
+</ul>
+<h3 id="methods-2"><a class="header" href="#methods-2">Methods</a></h3>
+<h4 id="insert-1"><a class="header" href="#insert-1">insert</a></h4>
+<pre><code class="language-pepper">insert(key: String): bool
+</code></pre>
+<p>Adds <code>key</code> when it is not there yet.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the string; its bytes are copied</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>true when <code>key</code> was added, false when it was there already</li>
+</ul>
+<h4 id="contains-1"><a class="header" href="#contains-1">contains</a></h4>
+<pre><code class="language-pepper">contains(key: String): bool
+</code></pre>
+<p>Whether <code>key</code> is in the set.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the string to look for</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>true when it is there</li>
+</ul>
+<h4 id="remove-1"><a class="header" href="#remove-1">remove</a></h4>
+<pre><code class="language-pepper">remove(key: String): bool
+</code></pre>
+<p>Removes <code>key</code>.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the string to remove</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>true when <code>key</code> was there</li>
+</ul>
+<h4 id="clear-1"><a class="header" href="#clear-1">clear</a></h4>
+<pre><code class="language-pepper">clear()
+</code></pre>
+<p>Removes every string.</p>
+<h4 id="iterate-1"><a class="header" href="#iterate-1">iterate</a></h4>
+<pre><code class="language-pepper">iterate(): HatTrieSetIterator
+</code></pre>
+<p>Returns an iterator over the strings in order; <code>for (var key in set)</code>
+drives it. Adding or removing a string makes its next <code>next()</code> panic.</p>
+<p><strong>Returns</strong></p>
+<ul>
+<li>an iterator positioned before the first string</li>
+</ul>
+<h4 id="with_prefix-1"><a class="header" href="#with_prefix-1">with_prefix</a></h4>
+<pre><code class="language-pepper">with_prefix(prefix: String): HatTrieSetIterator
+</code></pre>
+<p>Returns an iterator over the strings that start with <code>prefix</code>, in
+order, visiting only what is under <code>prefix</code> (see
+<code>HatTrieMap.with_prefix</code>).</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>prefix</code> — the bytes every string visited starts with; <code>""</code> visits all</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>an iterator positioned before the first such string</li>
+</ul>
+<h2 id="hattriesetiterator"><a class="header" href="#hattriesetiterator">HatTrieSetIterator</a></h2>
+<pre><code class="language-pepper">struct HatTrieSetIterator
+</code></pre>
+<p>An <code>Iterator&lt;String&gt;</code> over a <code>HatTrieSet</code>'s strings in order; returned by
+<code>HatTrieSet.iterate</code> and <code>HatTrieSet.with_prefix</code>. It fails fast as
+<code>HatTrieMapIterator</code> does.</p>
+<h3 id="constructor-3"><a class="header" href="#constructor-3">Constructor</a></h3>
+<h4 id="hattriesetiterator-1"><a class="header" href="#hattriesetiterator-1">HatTrieSetIterator()</a></h4>
+<pre><code class="language-pepper">construct(entries: HatTrieMapIterator&lt;_NoValue&gt;)
+</code></pre>
+<p>Makes an iterator over the keys <code>entries</code> visits. <code>HatTrieSet</code> calls it.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>entries</code> — the iterator over the set's map</li>
+</ul>
+<h3 id="methods-3"><a class="header" href="#methods-3">Methods</a></h3>
+<h4 id="next-1"><a class="header" href="#next-1">next</a></h4>
+<pre><code class="language-pepper">next(): bool
+</code></pre>
+<p>Advances to the next string.</p>
+<p><strong>Returns</strong></p>
+<ul>
+<li>true when there is a current string, false once every one was visited</li>
+</ul>
+<p><strong>Panics</strong></p>
+<ul>
+<li>if a string was added or removed since the iterator was made</li>
+</ul>
+<h4 id="current-1"><a class="header" href="#current-1">current</a></h4>
+<pre><code class="language-pepper">current(): String
+</code></pre>
+<p>Returns the string the last successful <code>next()</code> moved to.</p>
+<p><strong>Returns</strong></p>
+<ul>
+<li>the current string</li>
+</ul>
+<p><strong>Panics</strong></p>
+<ul>
+<li>if <code>next()</code> was not called or returned false, or the set changed</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated from static_trie.pep by `pep-doc package`. Do not edit. -->
+<h1 id="static_triepep"><a class="header" href="#static_triepep">static_trie.pep</a></h1>
+<p><code>StaticTrie&lt;T&gt;</code>: an immutable map from integer keys, 0 to <code>MAX_KEY</code>, to
+small integers, read from data that <code>StaticTrieBuilder</code> made. It is laid
+out as ICU's <code>UCPTrie</code> is, for Unicode code points, the use it is made
+for.</p>
+<p>Source: <code>static_trie.pep</code></p>
+<h2 id="max_key"><a class="header" href="#max_key">MAX_KEY</a></h2>
+<pre><code class="language-pepper">const MAX_KEY: uint = 0x10FFFF
+</code></pre>
+<p>The largest key a <code>StaticTrie</code> holds: 0x10FFFF, the largest Unicode code
+point.</p>
+<h2 id="statictrie"><a class="header" href="#statictrie">StaticTrie</a></h2>
+<pre><code class="language-pepper">[Value] struct StaticTrie&lt;T&gt;
+</code></pre>
+<p>An immutable trie that maps every key from 0 to <code>MAX_KEY</code> to a value of
+type <code>T</code>, in O(1) with no allocation. Made for dense keys whose values
+come in runs and repeat, such as the properties of Unicode code points.</p>
+<p>Its data is one <code>StringConstant</code> that a <code>StaticTrieBuilder</code> wrote
+(<code>StaticTrieData.source</code>), so a <code>const</code> of a trie is static data: it
+costs only its bytes in the binary, no startup work, and nothing in a
+program that never reads it. A string literal holds only bytes up to
+0x7F as static data (pep-lang/pepper#298), so each byte carries 7 bits,
+and an entry takes one or more of them, low bits first.</p>
+<p>The layout follows ICU's <code>UCPTrie</code>:</p>
+<ul>
+<li>a key below 0x80 (ASCII) reads its value at data entry <code>key</code>: one read;</li>
+<li>one below <code>fast_limit</code> (0x10000, the BMP, or 0x1000 for a small trie)
+reads the start of its 64-value data block from a flat index: two
+reads;</li>
+<li>one from <code>high_start</code> up has <code>high_value</code>: no read;</li>
+<li>the rest read an index-1 entry for their 1024 keys, an index-2 entry
+for their 16, then the value: three reads.</li>
+</ul>
+<p><strong>Type parameters</strong></p>
+<ul>
+<li><code>T</code> — the value type: <code>u8</code>, <code>u16</code> or <code>uint</code>, or any integer type the trie's values fit in</li>
+</ul>
+<p><strong>Example</strong></p>
+<pre><code class="language-pepper">import trie;
+
+# Written by StaticTrieData.source(), usually in a build script.
+const WIDTHS = trie.StaticTrie&lt;u8&gt;("...", 1, 2, 4096, 918528, 1, 1172);
+
+main(): int {
+    print(WIDTHS.get(0x4E2D));   # 2
+    return 0;
+}
+</code></pre>
+<h3 id="fields"><a class="header" href="#fields">Fields</a></h3>
+<h4 id="data"><a class="header" href="#data">data</a></h4>
+<pre><code class="language-pepper">var data: StringConstant
+</code></pre>
+<p>The bytes: the index entries, then the data entries.</p>
+<h4 id="value_digits"><a class="header" href="#value_digits">value_digits</a></h4>
+<pre><code class="language-pepper">var value_digits: ulong
+</code></pre>
+<p>The bytes of each data entry, 1 to 5.</p>
+<h4 id="index_digits"><a class="header" href="#index_digits">index_digits</a></h4>
+<pre><code class="language-pepper">var index_digits: ulong
+</code></pre>
+<p>The bytes of each index entry, 1 to 3.</p>
+<h4 id="fast_limit"><a class="header" href="#fast_limit">fast_limit</a></h4>
+<pre><code class="language-pepper">var fast_limit: uint
+</code></pre>
+<p>The key the flat index stops at: 0x10000, or 0x1000 for a small trie.</p>
+<h4 id="high_start"><a class="header" href="#high_start">high_start</a></h4>
+<pre><code class="language-pepper">var high_start: uint
+</code></pre>
+<p>The first key of the run at the top whose values are all
+<code>high_value</code>; a multiple of 1024.</p>
+<h4 id="high_value"><a class="header" href="#high_value">high_value</a></h4>
+<pre><code class="language-pepper">var high_value: uint
+</code></pre>
+<p>The value of every key from <code>high_start</code> up.</p>
+<h4 id="index_length"><a class="header" href="#index_length">index_length</a></h4>
+<pre><code class="language-pepper">var index_length: ulong
+</code></pre>
+<p>The number of index entries, before the data entries.</p>
+<h3 id="constructor-4"><a class="header" href="#constructor-4">Constructor</a></h3>
+<h4 id="statictrie-1"><a class="header" href="#statictrie-1">StaticTrie()</a></h4>
+<pre><code class="language-pepper">construct( data: StringConstant, value_digits: ulong, index_digits: ulong, fast_limit: uint, high_start: uint, high_value: uint, index_length: ulong )
+</code></pre>
+<p>Makes a trie over data a <code>StaticTrieBuilder</code> wrote. Pass the
+arguments <code>StaticTrieData.source</code> gives; with literal arguments, a
+<code>const</code> of the trie is static data.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>data</code> — the bytes</li>
+<li><code>value_digits</code> — the bytes of each data entry</li>
+<li><code>index_digits</code> — the bytes of each index entry</li>
+<li><code>fast_limit</code> — where the flat index stops</li>
+<li><code>high_start</code> — where the run of <code>high_value</code> at the top starts</li>
+<li><code>high_value</code> — the value of every key from <code>high_start</code> up</li>
+<li><code>index_length</code> — the number of index entries</li>
+</ul>
+<h3 id="methods-4"><a class="header" href="#methods-4">Methods</a></h3>
+<h4 id="get-1"><a class="header" href="#get-1">get</a></h4>
+<pre><code class="language-pepper">get(key: uint): T
+</code></pre>
+<p>Returns the value of <code>key</code>. A key past <code>MAX_KEY</code> has <code>high_value</code>, as
+the top of the range does.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the key, such as a code point</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>its value</li>
+</ul>
+<p><strong>Example</strong></p>
+<pre><code class="language-pepper">var width = WIDTHS.get(0x4E2D);
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated from static_trie_builder.pep by `pep-doc package`. Do not edit. -->
+<h1 id="static_trie_builderpep"><a class="header" href="#static_trie_builderpep">static_trie_builder.pep</a></h1>
+<p><code>StaticTrieBuilder</code>: builds a <code>StaticTrie</code> from key ranges and their
+values, in a build script or a generator, and writes it as Pepper source.</p>
+<p>Source: <code>static_trie_builder.pep</code></p>
+<h2 id="statictriekind"><a class="header" href="#statictriekind">StaticTrieKind</a></h2>
+<pre><code class="language-pepper">enum StaticTrieKind
+</code></pre>
+<p>Which layout <code>StaticTrieBuilder.build</code> writes, as ICU's
+<code>UCPTRIE_TYPE_FAST</code> and <code>UCPTRIE_TYPE_SMALL</code>.</p>
+<h3 id="cases"><a class="header" href="#cases">Cases</a></h3>
+<h4 id="fast"><a class="header" href="#fast">Fast</a></h4>
+<pre><code class="language-pepper">Fast
+</code></pre>
+<p>A flat index below 0x10000 (the BMP, for code points): two reads
+there, and a larger index (1024 entries).</p>
+<h4 id="small"><a class="header" href="#small">Small</a></h4>
+<pre><code class="language-pepper">Small
+</code></pre>
+<p>A flat index only below 0x1000: two reads there, three above, and a
+smaller index.</p>
+<h2 id="statictriebuilder"><a class="header" href="#statictriebuilder">StaticTrieBuilder</a></h2>
+<pre><code class="language-pepper">struct StaticTrieBuilder
+</code></pre>
+<p>Builds a <code>StaticTrie</code>: set values for keys and ranges of keys, then
+<code>build</code> it.</p>
+<p>Holds a value for each of the 0x110000 keys (4.4 MB), so it is for build
+scripts and generators, not for the programs that read the trie. <code>build</code> merges equal
+data blocks and equal index blocks, and overlaps each new block with the
+end of the one before where they agree, as ICU's builder does.</p>
+<p><strong>Example</strong></p>
+<pre><code class="language-pepper">import trie;
+
+var builder = trie.StaticTrieBuilder(1);
+builder.set_range(0x1100, 0x115F, 2);
+builder.set(0x200B, 0);
+var data = builder.build();
+var widths = data.reader&lt;u8&gt;();      # widths.get(0x1100) == 2
+print(data.source("u8"));             # trie.StaticTrie&lt;u8&gt;("...", ...)
+</code></pre>
+<h3 id="constructor-5"><a class="header" href="#constructor-5">Constructor</a></h3>
+<h4 id="statictriebuilder-1"><a class="header" href="#statictriebuilder-1">StaticTrieBuilder()</a></h4>
+<pre><code class="language-pepper">construct(initial_value: uint = 0)
+</code></pre>
+<p>Makes a builder in which every key has <code>initial_value</code>.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>initial_value</code> — the value of every key until one is set</li>
+</ul>
+<h3 id="methods-5"><a class="header" href="#methods-5">Methods</a></h3>
+<h4 id="get-2"><a class="header" href="#get-2">get</a></h4>
+<pre><code class="language-pepper">get(key: uint): uint
+</code></pre>
+<p>Returns the value set for <code>key</code> so far.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the key</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>its value</li>
+</ul>
+<p><strong>Panics</strong></p>
+<ul>
+<li>if <code>key</code> is past <code>MAX_KEY</code></li>
+</ul>
+<h4 id="set"><a class="header" href="#set">set</a></h4>
+<pre><code class="language-pepper">set(key: uint, value: uint)
+</code></pre>
+<p>Sets the value of <code>key</code>.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the key</li>
+<li><code>value</code> — its value</li>
+</ul>
+<p><strong>Panics</strong></p>
+<ul>
+<li>if <code>key</code> is past <code>MAX_KEY</code></li>
+</ul>
+<h4 id="set_range"><a class="header" href="#set_range">set_range</a></h4>
+<pre><code class="language-pepper">set_range(first: uint, last: uint, value: uint)
+</code></pre>
+<p>Sets the value of every key from <code>first</code> to <code>last</code>, both included.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>first</code> — the first key of the range</li>
+<li><code>last</code> — the last key of the range</li>
+<li><code>value</code> — their value</li>
+</ul>
+<p><strong>Panics</strong></p>
+<ul>
+<li>if <code>last</code> is past <code>MAX_KEY</code> or <code>first</code> is past <code>last</code></li>
+</ul>
+<h4 id="build"><a class="header" href="#build">build</a></h4>
+<pre><code class="language-pepper">build(kind: StaticTrieKind = StaticTrieKind.Fast): StaticTrieData
+</code></pre>
+<p>Builds the trie's data. The builder is unchanged, so it can be built
+again after more changes.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>kind</code> — the layout: <code>Fast</code> (the default) or <code>Small</code></li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>the data, which <code>StaticTrieData.source</code> writes as Pepper source and <code>StaticTrieData.reader</code> reads</li>
+</ul>
+<h2 id="statictriedata"><a class="header" href="#statictriedata">StaticTrieData</a></h2>
+<pre><code class="language-pepper">struct StaticTrieData
+</code></pre>
+<p>The data <code>StaticTrieBuilder.build</code> made: the bytes and the parameters
+a <code>StaticTrie</code> reads them with.</p>
+<h3 id="fields-1"><a class="header" href="#fields-1">Fields</a></h3>
+<h4 id="bytes"><a class="header" href="#bytes">bytes</a></h4>
+<pre><code class="language-pepper">var bytes: u8[]
+</code></pre>
+<p>The bytes, each 0 to 0x7F: the index entries, then the data entries.</p>
+<h4 id="value_digits-1"><a class="header" href="#value_digits-1">value_digits</a></h4>
+<pre><code class="language-pepper">var value_digits: ulong
+</code></pre>
+<p>The bytes of each data entry.</p>
+<h4 id="index_digits-1"><a class="header" href="#index_digits-1">index_digits</a></h4>
+<pre><code class="language-pepper">var index_digits: ulong
+</code></pre>
+<p>The bytes of each index entry.</p>
+<h4 id="fast_limit-1"><a class="header" href="#fast_limit-1">fast_limit</a></h4>
+<pre><code class="language-pepper">var fast_limit: uint
+</code></pre>
+<p>The key the flat index stops at.</p>
+<h4 id="high_start-1"><a class="header" href="#high_start-1">high_start</a></h4>
+<pre><code class="language-pepper">var high_start: uint
+</code></pre>
+<p>Where the run of <code>high_value</code> at the top starts.</p>
+<h4 id="high_value-1"><a class="header" href="#high_value-1">high_value</a></h4>
+<pre><code class="language-pepper">var high_value: uint
+</code></pre>
+<p>The value of every key from <code>high_start</code> up.</p>
+<h4 id="index_length-1"><a class="header" href="#index_length-1">index_length</a></h4>
+<pre><code class="language-pepper">var index_length: ulong
+</code></pre>
+<p>The number of index entries.</p>
+<h3 id="constructor-6"><a class="header" href="#constructor-6">Constructor</a></h3>
+<h4 id="statictriedata-1"><a class="header" href="#statictriedata-1">StaticTrieData()</a></h4>
+<pre><code class="language-pepper">construct()
+</code></pre>
+<p>Makes empty data; <code>StaticTrieBuilder.build</code> fills it in.</p>
+<h3 id="methods-6"><a class="header" href="#methods-6">Methods</a></h3>
+<h4 id="reader"><a class="header" href="#reader">reader</a></h4>
+<pre><code class="language-pepper">reader&lt;T&gt;(): StaticTrie&lt;T&gt;
+</code></pre>
+<p>Returns a trie that reads these bytes at run time, for data built in
+the same program (a test, or a table built at startup). It copies the
+bytes into memory that is never freed, as a string literal's bytes
+are not, so the trie outlives this object: make a reader once per
+table, not per lookup. A generator writes <code>source()</code> instead.</p>
+<p><strong>Type parameters</strong></p>
+<ul>
+<li><code>T</code> — the value type; every value must fit in it</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>the trie</li>
+</ul>
+<h4 id="source"><a class="header" href="#source">source</a></h4>
+<pre><code class="language-pepper">source(value_type: String): String
+</code></pre>
+<p>Returns the Pepper expression that makes this trie from literals, for
+a generator to write after <code>const NAME = </code>; the program that reads it
+then holds the bytes as static data. It names the type as
+<code>trie.StaticTrie</code>, so that file imports <code>trie</code>.</p>
+<p>The string is one line. Bytes from space to <code>~</code> are written as they
+are (with <code>"</code> and <code>\</code> escaped), the rest as <code>\x</code> escapes.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>value_type</code> — the trie's value type, such as <code>"u8"</code></li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>the expression</li>
+</ul>
+<p><strong>Example</strong></p>
+<pre><code class="language-pepper">var line = $"const _WIDTH = {data.source("u8")};";
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>

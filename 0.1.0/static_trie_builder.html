@@ -1,0 +1,406 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>static_trie_builder.pep - trie</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">trie</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <!-- Generated from static_trie_builder.pep by `pep-doc package`. Do not edit. -->
+<h1 id="static_trie_builderpep"><a class="header" href="#static_trie_builderpep">static_trie_builder.pep</a></h1>
+<p><code>StaticTrieBuilder</code>: builds a <code>StaticTrie</code> from key ranges and their
+values, in a build script or a generator, and writes it as Pepper source.</p>
+<p>Source: <code>static_trie_builder.pep</code></p>
+<h2 id="statictriekind"><a class="header" href="#statictriekind">StaticTrieKind</a></h2>
+<pre><code class="language-pepper">enum StaticTrieKind
+</code></pre>
+<p>Which layout <code>StaticTrieBuilder.build</code> writes, as ICU's
+<code>UCPTRIE_TYPE_FAST</code> and <code>UCPTRIE_TYPE_SMALL</code>.</p>
+<h3 id="cases"><a class="header" href="#cases">Cases</a></h3>
+<h4 id="fast"><a class="header" href="#fast">Fast</a></h4>
+<pre><code class="language-pepper">Fast
+</code></pre>
+<p>A flat index below 0x10000 (the BMP, for code points): two reads
+there, and a larger index (1024 entries).</p>
+<h4 id="small"><a class="header" href="#small">Small</a></h4>
+<pre><code class="language-pepper">Small
+</code></pre>
+<p>A flat index only below 0x1000: two reads there, three above, and a
+smaller index.</p>
+<h2 id="statictriebuilder"><a class="header" href="#statictriebuilder">StaticTrieBuilder</a></h2>
+<pre><code class="language-pepper">struct StaticTrieBuilder
+</code></pre>
+<p>Builds a <code>StaticTrie</code>: set values for keys and ranges of keys, then
+<code>build</code> it.</p>
+<p>Holds a value for each of the 0x110000 keys (4.4 MB), so it is for build
+scripts and generators, not for the programs that read the trie. <code>build</code> merges equal
+data blocks and equal index blocks, and overlaps each new block with the
+end of the one before where they agree, as ICU's builder does.</p>
+<p><strong>Example</strong></p>
+<pre><code class="language-pepper">import trie;
+
+var builder = trie.StaticTrieBuilder(1);
+builder.set_range(0x1100, 0x115F, 2);
+builder.set(0x200B, 0);
+var data = builder.build();
+var widths = data.reader&lt;u8&gt;();      # widths.get(0x1100) == 2
+print(data.source("u8"));             # trie.StaticTrie&lt;u8&gt;("...", ...)
+</code></pre>
+<h3 id="constructor"><a class="header" href="#constructor">Constructor</a></h3>
+<h4 id="statictriebuilder-1"><a class="header" href="#statictriebuilder-1">StaticTrieBuilder()</a></h4>
+<pre><code class="language-pepper">construct(initial_value: uint = 0)
+</code></pre>
+<p>Makes a builder in which every key has <code>initial_value</code>.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>initial_value</code> — the value of every key until one is set</li>
+</ul>
+<h3 id="methods"><a class="header" href="#methods">Methods</a></h3>
+<h4 id="get"><a class="header" href="#get">get</a></h4>
+<pre><code class="language-pepper">get(key: uint): uint
+</code></pre>
+<p>Returns the value set for <code>key</code> so far.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the key</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>its value</li>
+</ul>
+<p><strong>Panics</strong></p>
+<ul>
+<li>if <code>key</code> is past <code>MAX_KEY</code></li>
+</ul>
+<h4 id="set"><a class="header" href="#set">set</a></h4>
+<pre><code class="language-pepper">set(key: uint, value: uint)
+</code></pre>
+<p>Sets the value of <code>key</code>.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>key</code> — the key</li>
+<li><code>value</code> — its value</li>
+</ul>
+<p><strong>Panics</strong></p>
+<ul>
+<li>if <code>key</code> is past <code>MAX_KEY</code></li>
+</ul>
+<h4 id="set_range"><a class="header" href="#set_range">set_range</a></h4>
+<pre><code class="language-pepper">set_range(first: uint, last: uint, value: uint)
+</code></pre>
+<p>Sets the value of every key from <code>first</code> to <code>last</code>, both included.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>first</code> — the first key of the range</li>
+<li><code>last</code> — the last key of the range</li>
+<li><code>value</code> — their value</li>
+</ul>
+<p><strong>Panics</strong></p>
+<ul>
+<li>if <code>last</code> is past <code>MAX_KEY</code> or <code>first</code> is past <code>last</code></li>
+</ul>
+<h4 id="build"><a class="header" href="#build">build</a></h4>
+<pre><code class="language-pepper">build(kind: StaticTrieKind = StaticTrieKind.Fast): StaticTrieData
+</code></pre>
+<p>Builds the trie's data. The builder is unchanged, so it can be built
+again after more changes.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>kind</code> — the layout: <code>Fast</code> (the default) or <code>Small</code></li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>the data, which <code>StaticTrieData.source</code> writes as Pepper source and <code>StaticTrieData.reader</code> reads</li>
+</ul>
+<h2 id="statictriedata"><a class="header" href="#statictriedata">StaticTrieData</a></h2>
+<pre><code class="language-pepper">struct StaticTrieData
+</code></pre>
+<p>The data <code>StaticTrieBuilder.build</code> made: the bytes and the parameters
+a <code>StaticTrie</code> reads them with.</p>
+<h3 id="fields"><a class="header" href="#fields">Fields</a></h3>
+<h4 id="bytes"><a class="header" href="#bytes">bytes</a></h4>
+<pre><code class="language-pepper">var bytes: u8[]
+</code></pre>
+<p>The bytes, each 0 to 0x7F: the index entries, then the data entries.</p>
+<h4 id="value_digits"><a class="header" href="#value_digits">value_digits</a></h4>
+<pre><code class="language-pepper">var value_digits: ulong
+</code></pre>
+<p>The bytes of each data entry.</p>
+<h4 id="index_digits"><a class="header" href="#index_digits">index_digits</a></h4>
+<pre><code class="language-pepper">var index_digits: ulong
+</code></pre>
+<p>The bytes of each index entry.</p>
+<h4 id="fast_limit"><a class="header" href="#fast_limit">fast_limit</a></h4>
+<pre><code class="language-pepper">var fast_limit: uint
+</code></pre>
+<p>The key the flat index stops at.</p>
+<h4 id="high_start"><a class="header" href="#high_start">high_start</a></h4>
+<pre><code class="language-pepper">var high_start: uint
+</code></pre>
+<p>Where the run of <code>high_value</code> at the top starts.</p>
+<h4 id="high_value"><a class="header" href="#high_value">high_value</a></h4>
+<pre><code class="language-pepper">var high_value: uint
+</code></pre>
+<p>The value of every key from <code>high_start</code> up.</p>
+<h4 id="index_length"><a class="header" href="#index_length">index_length</a></h4>
+<pre><code class="language-pepper">var index_length: ulong
+</code></pre>
+<p>The number of index entries.</p>
+<h3 id="constructor-1"><a class="header" href="#constructor-1">Constructor</a></h3>
+<h4 id="statictriedata-1"><a class="header" href="#statictriedata-1">StaticTrieData()</a></h4>
+<pre><code class="language-pepper">construct()
+</code></pre>
+<p>Makes empty data; <code>StaticTrieBuilder.build</code> fills it in.</p>
+<h3 id="methods-1"><a class="header" href="#methods-1">Methods</a></h3>
+<h4 id="reader"><a class="header" href="#reader">reader</a></h4>
+<pre><code class="language-pepper">reader&lt;T&gt;(): StaticTrie&lt;T&gt;
+</code></pre>
+<p>Returns a trie that reads these bytes at run time, for data built in
+the same program (a test, or a table built at startup). It copies the
+bytes into memory that is never freed, as a string literal's bytes
+are not, so the trie outlives this object: make a reader once per
+table, not per lookup. A generator writes <code>source()</code> instead.</p>
+<p><strong>Type parameters</strong></p>
+<ul>
+<li><code>T</code> — the value type; every value must fit in it</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>the trie</li>
+</ul>
+<h4 id="source"><a class="header" href="#source">source</a></h4>
+<pre><code class="language-pepper">source(value_type: String): String
+</code></pre>
+<p>Returns the Pepper expression that makes this trie from literals, for
+a generator to write after <code>const NAME = </code>; the program that reads it
+then holds the bytes as static data. It names the type as
+<code>trie.StaticTrie</code>, so that file imports <code>trie</code>.</p>
+<p>The string is one line. Bytes from space to <code>~</code> are written as they
+are (with <code>"</code> and <code>\</code> escaped), the rest as <code>\x</code> escapes.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>value_type</code> — the trie's value type, such as <code>"u8"</code></li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li>the expression</li>
+</ul>
+<p><strong>Example</strong></p>
+<pre><code class="language-pepper">var line = $"const _WIDTH = {data.source("u8")};";
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="static_trie.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="static_trie.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>
