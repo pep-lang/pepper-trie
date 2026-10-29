@@ -5,7 +5,7 @@
 ## @param name who to greet
 ## @returns `Hello, <name>!`
 ## @example
-##     mypkg.greet("Ada");   # "Hello, Ada!"
+##     trie.greet("Ada");   # "Hello, Ada!"
 export greet(name: String): String {
     return $"Hello, {name}!";
 }

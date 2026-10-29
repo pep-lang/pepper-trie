@@ -1,8 +1,8 @@
-# The mypkg package's greetings.
+# The trie package's greetings.
 
-import mypkg;
+import trie;
 
 [Test]
 greets_by_name() {
-    expect_equal(mypkg.greet("Ada"), "Hello, Ada!");
+    expect_equal(trie.greet("Ada"), "Hello, Ada!");
 }

@@ -1,20 +1,20 @@
-# pepper-mypkg
+# pepper-trie
 
 One paragraph for [Pepper](https://github.com/pep-lang/pepper): what the
 package does and why someone would use it. Its reference:
-<https://OWNER.github.io/pepper-mypkg/>.
+<https://pep-lang.github.io/pepper-trie/>.
 
-One module, **`mypkg`**:
+One module, **`trie`**:
 
-- **`mypkg.greet(name)`** returns a greeting for `name`.
-- **`mypkg.add(a, b)`** returns `a + b`, computed in C (`native/add.c`,
+- **`trie.greet(name)`** returns a greeting for `name`.
+- **`trie.add(a, b)`** returns `a + b`, computed in C (`native/add.c`,
   which the `[native]` table in `pep.toml` compiles and links).
 
 ```pepper
-import mypkg;
+import trie;
 
 main(): int {
-    print(mypkg.greet("Ada"));   # Hello, Ada!
+    print(trie.greet("Ada"));   # Hello, Ada!
     return 0;
 }
 ```
@@ -26,21 +26,21 @@ main(): int {
 ## Using it
 
 This repository is a package: `pep.toml` marks its root, and its root
-`module.pep` is the `mypkg` module. Add it to a project under the name
-`mypkg`:
+`module.pep` is the `trie` module. Add it to a project under the name
+`trie`:
 
 ```sh
-pepper package add OWNER/pepper-mypkg --name mypkg
+pepper package add pep-lang/pepper-trie --name trie
 ```
 
 which writes
 
 ```toml
 [dependencies]
-mypkg = { github = "OWNER/pepper-mypkg" }
+trie = { github = "pep-lang/pepper-trie" }
 ```
 
-Without a project, put a folder named `mypkg` that holds (or links to)
+Without a project, put a folder named `trie` that holds (or links to)
 this repository on the import path: `pepper build -I packages main.pep`.
 That builds no C, though: a package with a `[native]` table in its
 `pep.toml` must be a dependency.
@@ -53,7 +53,7 @@ tests/run.sh path/to/pepper
 
 runs the `[Test]` functions in `tests/` with `pepper test`. A package only
 the tests use goes in `[dev-dependencies]` (`pepper package add --dev
-OWNER/name`): projects that depend on this one do not fetch it.
+pep-lang/name`): projects that depend on this one do not fetch it.
 
 ## Releasing
 
