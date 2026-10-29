@@ -22,10 +22,10 @@
 
 # This file only gathers the module's public API from its other files.
 
-import "static_trie";
-import "static_trie_builder";
 import "hat_trie_map";
 import "hat_trie_set";
+import "static_trie";
+import "static_trie_builder";
 
 export StaticTrie;
 export StaticTrieBuilder;

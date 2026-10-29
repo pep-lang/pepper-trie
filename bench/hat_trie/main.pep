@@ -30,7 +30,9 @@ struct Keys {
     construct(kind: String) {
         this.kind = kind;
         _generator = random.Generator(7);
-        _hosts = ["example.com", "pepper-lang.org", "docs.rs", "github.com", "en.wikipedia.org", "news.ycombinator.com"];
+        _hosts = [
+            "example.com", "pepper-lang.org", "docs.rs", "github.com", "en.wikipedia.org", "news.ycombinator.com"
+        ];
         _sections = ["wiki", "issues", "pull", "blob/main", "tree/main", "search", "users", "items"];
     }
 
@@ -155,14 +157,16 @@ main(): int {
     } else if (structure == "map") {
         var map = Map<String, long>();
         _fill(run, kind, count, (key, value) => map.insert(key, value), (key) => map.get(key));
-        run.prefix_ms = _time(() => {
-            for (var prefix in prefixes) {
-                # Every key byte sorts before '{', so these are the keys under `prefix`.
-                for (var (key, value) in map.range(prefix, prefix + "{")) {
-                    run.checksum += value;
+        run.prefix_ms = _time(
+            () => {
+                for (var prefix in prefixes) {
+                    # Every key byte sorts before '{', so these are the keys under `prefix`.
+                    for (var (key, value) in map.range(prefix, prefix + "{")) {
+                        run.checksum += value;
+                    }
                 }
             }
-        });
+        );
         run.ordered_ms = _time(() => {
             for (var (key, value) in map) {
                 run.checksum += key.size as long;
