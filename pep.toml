@@ -1,17 +1,11 @@
 [package]
-name = "mypkg"
+name = "trie"
 version = "0.1.0"
-description = "One line saying what the package does"
+description = "Compact tries: a static code point trie for Unicode tables, and a HAT-trie map from strings"
 license = "Apache-2.0"
-repository = "https://github.com/OWNER/pepper-mypkg"
+repository = "https://github.com/pep-lang/pepper-trie"
 # The oldest Pepper toolchain that builds the package (0.11 added
 # `[native]`): CI also tests with it, and `pepper package` skips a version
 # whose minimum is newer than the user's toolchain.
 minimum_toolchain = "0.11.0"
 
-# C code the build compiles and links into every program that uses the
-# package: native/add.c is the example, which add.pep calls. A package
-# with none deletes this table, native/, add.pep, tests/add_test.pep and
-# `add` in module.pep.
-[native]
-sources = ["native/*.c"]

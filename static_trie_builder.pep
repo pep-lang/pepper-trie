@@ -1,0 +1,328 @@
+## `StaticTrieBuilder`: builds a `StaticTrie` from key ranges and their
+## values, in a build script or a generator, and writes it as Pepper source.
+
+import "static_trie";
+
+extern void* malloc(ulong size);
+extern void memcpy(void* destination, void* source, ulong size);
+
+# The bits each byte of the data carries (pep-lang/pepper#298).
+const _DIGIT_BITS: uint = 7;
+const _HEX = "0123456789ABCDEF";
+
+## Which layout `StaticTrieBuilder.build` writes, as ICU's
+## `UCPTRIE_TYPE_FAST` and `UCPTRIE_TYPE_SMALL`.
+export enum StaticTrieKind {
+    ## A flat index below 0x10000 (the BMP, for code points): two reads
+    ## there, and a larger index (1024 entries).
+    Fast,
+    ## A flat index only below 0x1000: two reads there, three above, and a
+    ## smaller index.
+    Small,
+}
+
+## Builds a `StaticTrie`: set values for keys and ranges of keys, then
+## `build` it.
+##
+## Holds a value for each of the 0x110000 keys (4.4 MB), so it is for build
+## scripts and generators, not for the programs that read the trie. `build` merges equal
+## data blocks and equal index blocks, and overlaps each new block with the
+## end of the one before where they agree, as ICU's builder does.
+##
+## @example
+##     import trie;
+##
+##     var builder = trie.StaticTrieBuilder(1);
+##     builder.set_range(0x1100, 0x115F, 2);
+##     builder.set(0x200B, 0);
+##     var data = builder.build();
+##     var widths = data.reader<u8>();      # widths.get(0x1100) == 2
+##     print(data.source("u8"));             # trie.StaticTrie<u8>("...", ...)
+export struct StaticTrieBuilder {
+    var _values: uint[];
+
+    ## Makes a builder in which every key has `initial_value`.
+    ##
+    ## @param initial_value the value of every key until one is set
+    construct(initial_value: uint = 0) {
+        _values = Array<uint>();
+        _values.resize((MAX_KEY + 1) as ulong, initial_value);
+    }
+
+    ## Returns the value set for `key` so far.
+    ##
+    ## @param key the key
+    ## @returns its value
+    ## @panics if `key` is past `MAX_KEY`
+    get(key: uint): uint {
+        assert(key <= MAX_KEY, "StaticTrieBuilder: key past MAX_KEY");
+        return _values[key as ulong];
+    }
+
+    ## Sets the value of `key`.
+    ##
+    ## @param key the key
+    ## @param value its value
+    ## @panics if `key` is past `MAX_KEY`
+    set(key: uint, value: uint) {
+        assert(key <= MAX_KEY, "StaticTrieBuilder: key past MAX_KEY");
+        _values[key as ulong] = value;
+    }
+
+    ## Sets the value of every key from `first` to `last`, both included.
+    ##
+    ## @param first the first key of the range
+    ## @param last the last key of the range
+    ## @param value their value
+    ## @panics if `last` is past `MAX_KEY` or `first` is past `last`
+    set_range(first: uint, last: uint, value: uint) {
+        assert(last <= MAX_KEY, "StaticTrieBuilder: key past MAX_KEY");
+        assert(first <= last, "StaticTrieBuilder: range ends before it starts");
+        for (var cp in first as ulong..last as ulong + 1) {
+            _values[cp] = value;
+        }
+    }
+
+    ## Builds the trie's data. The builder is unchanged, so it can be built
+    ## again after more changes.
+    ##
+    ## @param kind the layout: `Fast` (the default) or `Small`
+    ## @returns the data, which `StaticTrieData.source` writes as Pepper
+    ##   source and `StaticTrieData.reader` reads
+    build(kind: StaticTrieKind = StaticTrieKind.Fast): StaticTrieData {
+        uint fast_limit = kind == StaticTrieKind.Fast ? 0x10000 : 0x1000;
+        var high_value = _values[MAX_KEY as ulong];
+        ulong last = MAX_KEY as ulong;
+        while (last > 0 and _values[last] == high_value) {
+            last -= 1;
+        }
+        var high_start = ((last + 1 + 1023) / 1024 * 1024) as uint;
+        if (high_start < fast_limit) {
+            high_start = fast_limit;
+        }
+
+        var data = _Blocks(true);
+        # Keys below 0x80 first and in order, so the reader finds them at data
+        # entry `key`.
+        for (var cp in 0..128) {
+            data.entries.append(_values[cp]);
+        }
+        data.remember(_values, 0, 0, 64);
+        data.remember(_values, 64, 64, 64);
+
+        var index = Array<ulong>();
+        for (var block in 0..(fast_limit / 64) as ulong) {
+            index.append(data.place(_values, block * 64, 64));
+        }
+        var index1_count = ((high_start - fast_limit) / 1024) as ulong;
+        var index2_start = index.count + index1_count;
+        var index2 = _Blocks(false);
+        var index1 = Array<ulong>();
+        for (var chunk in 0..index1_count) {
+            var first = fast_limit as ulong + chunk * 1024;
+            var entries = Array<uint>();
+            for (var block in 0..64) {
+                entries.append(data.place(_values, first + block * 16, 16) as uint);
+            }
+            index1.append(index2_start + index2.place(entries, 0, 64));
+        }
+        index.append_all(index1);
+        for (var entry in index2.entries) {
+            index.append(entry as ulong);
+        }
+
+        ulong max_index = 0;
+        for (var entry in index) {
+            max_index = entry > max_index ? entry : max_index;
+        }
+        uint max_value = 0;
+        for (var entry in data.entries) {
+            max_value = entry > max_value ? entry : max_value;
+        }
+        var result = StaticTrieData();
+        result.value_digits = _digits(max_value as ulong);
+        result.index_digits = _digits(max_index);
+        result.fast_limit = fast_limit;
+        result.high_start = high_start;
+        result.high_value = high_value;
+        result.index_length = index.count;
+        var bytes = Array<u8>();
+        for (var entry in index) {
+            _put(bytes, entry, result.index_digits);
+        }
+        for (var entry in data.entries) {
+            _put(bytes, entry as ulong, result.value_digits);
+        }
+        result.bytes = bytes;
+        return result;
+    }
+}
+
+## The data `StaticTrieBuilder.build` made: the bytes and the parameters
+## a `StaticTrie` reads them with.
+export struct StaticTrieData {
+    ## The bytes, each 0 to 0x7F: the index entries, then the data entries.
+    var bytes: u8[];
+    ## The bytes of each data entry.
+    var value_digits: ulong;
+    ## The bytes of each index entry.
+    var index_digits: ulong;
+    ## The key the flat index stops at.
+    var fast_limit: uint;
+    ## Where the run of `high_value` at the top starts.
+    var high_start: uint;
+    ## The value of every key from `high_start` up.
+    var high_value: uint;
+    ## The number of index entries.
+    var index_length: ulong;
+
+    ## Makes empty data; `StaticTrieBuilder.build` fills it in.
+    construct() {
+        bytes = Array<u8>();
+    }
+
+    ## Returns a trie that reads these bytes at run time, for data built in
+    ## the same program (a test, or a table built at startup). It copies the
+    ## bytes into memory that is never freed, as a string literal's bytes
+    ## are not, so the trie outlives this object: make a reader once per
+    ## table, not per lookup. A generator writes `source()` instead.
+    ##
+    ## @typeParam T the value type; every value must fit in it
+    ## @returns the trie
+    reader<T>(): StaticTrie<T> {
+        __ptr<char> copy = malloc(bytes.count + 1);
+        memcpy(copy, bytes.data(), bytes.count);
+        copy[bytes.count] = 0;
+        # Every byte is ASCII, so the size is the length.
+        return StaticTrie<T>(
+            StringConstant(copy, bytes.count, bytes.count),
+            value_digits,
+            index_digits,
+            fast_limit,
+            high_start,
+            high_value,
+            index_length
+        );
+    }
+
+    ## Returns the Pepper expression that makes this trie from literals, for
+    ## a generator to write after `const NAME = `; the program that reads it
+    ## then holds the bytes as static data. It names the type as
+    ## `trie.StaticTrie`, so that file imports `trie`.
+    ##
+    ## The string is one line. Bytes from space to `~` are written as they
+    ## are (with `"` and `\` escaped), the rest as `\x` escapes.
+    ##
+    ## @param value_type the trie's value type, such as `"u8"`
+    ## @returns the expression
+    ## @example
+    ##     var line = $"const _WIDTH = {data.source("u8")};";
+    source(value_type: String): String {
+        var text = Array<u8>();
+        for (var b in bytes) {
+            if (b == '"' as u8 or b == '\\' as u8) {
+                text.append('\\' as u8);
+                text.append(b);
+            } else if (b >= 0x20 and b < 0x7F) {
+                text.append(b);
+            } else {
+                text.append('\\' as u8);
+                text.append('x' as u8);
+                text.append(_HEX.byte_at((b >> 4) as ulong) as u8);
+                text.append(_HEX.byte_at((b & 15) as ulong) as u8);
+            }
+        }
+        var literal = String(unsafe_cast<__ptr<char>>(text.data()), text.count);
+        var arguments = $"{value_digits}, {index_digits}, {fast_limit}, {high_start}, {high_value}, {index_length}";
+        return $"trie.StaticTrie<{value_type}>(\"{literal}\", {arguments})";
+    }
+}
+
+# A growing array of entries that places blocks of them, reusing an equal
+# block already placed and overlapping a new one with the array's end.
+struct _Blocks {
+    var entries: uint[];
+    # Each placed block's text (`_key`), and where it starts.
+    var _starts: HashMap<String, ulong>;
+    # Whether 16-entry blocks are looked up inside larger ones (data blocks
+    # are; index-2 blocks never are).
+    var _sub_blocks: bool;
+
+    construct(sub_blocks: bool) {
+        entries = Array<uint>();
+        _starts = HashMap<String, ulong>();
+        _sub_blocks = sub_blocks;
+    }
+
+    # Where `size` entries of `source` from `first` start in `entries`,
+    # placing them if no equal block was placed.
+    place(source: uint[], first: ulong, size: ulong): ulong {
+        var key = _key(source, first, size);
+        if (_starts.try_get(key) is Value(start)) {
+            return start;
+        }
+        var overlap = size - 1;
+        while (overlap > 0 and !_tail_matches(source, first, overlap)) {
+            overlap -= 1;
+        }
+        var start = entries.count - overlap;
+        for (var i in overlap..size) {
+            entries.append(source[first + i]);
+        }
+        remember(source, first, start, size);
+        return start;
+    }
+
+    # Records that `size` entries of `source` from `first` sit at `start`,
+    # and each 16-entry block in them.
+    remember(source: uint[], first: ulong, start: ulong, size: ulong) {
+        _starts[_key(source, first, size)] = start;
+        if (_sub_blocks and size > 16) {
+            for (var part in 0..size / 16) {
+                var key = _key(source, first + part * 16, 16);
+                if (!_starts.contains(key)) {
+                    _starts[key] = start + part * 16;
+                }
+            }
+        }
+    }
+
+    # Whether the last `count` entries equal the `count` of `source` from `first`.
+    _tail_matches(source: uint[], first: ulong, count: ulong): bool {
+        if (count > entries.count) {
+            return false;
+        }
+        var at = entries.count - count;
+        for (var i in 0..count) {
+            if (entries[at + i] != source[first + i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    _key(source: uint[], first: ulong, size: ulong): String {
+        var out = StringBuilder();
+        out.append(to_string(size)).append(":");
+        for (var i in 0..size) {
+            out.append(to_string(source[first + i])).append(",");
+        }
+        return out.to_string();
+    }
+}
+
+# The 7-bit bytes `value` takes, at least 1.
+_digits(value: ulong): ulong {
+    ulong digits = 1;
+    while (value >> (_DIGIT_BITS * digits as uint) != 0) {
+        digits += 1;
+    }
+    return digits;
+}
+
+# Appends `value` as `digits` 7-bit bytes, low bits first.
+_put(bytes: u8[], value: ulong, digits: ulong) {
+    for (var i in 0..digits) {
+        bytes.append(((value >> (_DIGIT_BITS * i as uint)) & 0x7F) as u8);
+    }
+}

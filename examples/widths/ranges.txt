@@ -1,0 +1,17 @@
+# Display widths: first code point, last code point, columns, in hex.
+# Code points not listed take 1 column.
+0000 001F 0
+007F 009F 0
+0300 036F 0
+1100 115F 2
+200B 200B 0
+2E80 303E 2
+3041 33FF 2
+4E00 9FFF 2
+AC00 D7A3 2
+F900 FAFF 2
+FE00 FE0F 0
+FF00 FF60 2
+1F300 1F64F 2
+20000 3FFFD 2
+E0100 E01EF 0
