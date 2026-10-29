@@ -137,3 +137,24 @@ clear_empties_the_trie() {
     t["5"] = 5;
     expect_equal(t["5"], 5);
 }
+
+[Test]
+keys_with_a_long_shared_prefix_burst_once() {
+    var t = trie.HatTrieMap<int>(4);
+    var expected = Map<String, int>();
+    # The shared prefix is a key too: it ends on the last node of the chain.
+    for (var key in ["https://example.com/", "https://example.com/a", "https://example.com/ab"]) {
+        t[key] = key.size as int;
+        expected[key] = key.size as int;
+    }
+    for (var i in 0..50) {
+        var key = $"https://example.com/{i}";
+        t[key] = i;
+        expected[key] = i;
+    }
+    _expect_same(t, expected);
+    _expect_prefix(t, expected, "https://example.com/");
+    _expect_prefix(t, expected, "https://example.com/a");
+    _expect_prefix(t, expected, "https://ex");
+    expect_equal(t["https://example.com/"], 20);
+}

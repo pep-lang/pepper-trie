@@ -58,9 +58,14 @@ struct _HatNode<T> {
 
     # Adds or replaces the value of the `size` bytes at `key`; true when added.
     insert(key: __ptr<char>, size: ulong, value: T): bool {
-        var found = find(key, size);
-        if (found >= 0) {
-            values[found as ulong] = value;
+        var hash = _pep_hash_bytes(key, size);
+        var bucket = buckets[(hash & (buckets.count - 1) as u64) as ulong];
+        var at = _scan(bucket, key, size);
+        if (at >= 0) {
+            __ptr<u8> bytes = bucket.data();
+            var (length, start) = _read_varint(bytes, at as ulong);
+            var (found, end) = _read_varint(bytes, start + length);
+            values[found] = value;
             return false;
         }
         ulong index;
@@ -73,8 +78,9 @@ struct _HatNode<T> {
         }
         if (this.size + 1 > buckets.count * _BUCKET_LOAD) {
             _rehash(buckets.count * 2);
+            bucket = buckets[(hash & (buckets.count - 1) as u64) as ulong];
         }
-        _append(key, size, index);
+        _write_entry(bucket, key, size, index);
         return true;
     }
 
@@ -97,8 +103,10 @@ struct _HatNode<T> {
 
     # Appends an entry for a key known to be absent.
     _append(key: __ptr<char>, size: ulong, index: ulong) {
-        var slot = _bucket_of(key, size, buckets.count);
-        var bucket = buckets[slot];
+        _write_entry(buckets[_bucket_of(key, size, buckets.count)], key, size, index);
+    }
+
+    _write_entry(bucket: u8[], key: __ptr<char>, size: ulong, index: ulong) {
         _write_varint(bucket, size);
         bucket.append_from(unsafe_cast<__ptr<u8>>(key), size);
         _write_varint(bucket, index);
@@ -114,20 +122,65 @@ struct _HatNode<T> {
         }
     }
 
-    # Turns this container into a trie node with a container per first
-    # byte, which hold the keys without it.
+    # Turns this container into a trie node, with a chain of trie nodes for
+    # the bytes all its keys start with (so a long shared prefix moves each
+    # key once, not once per byte), then a container per next byte, which
+    # holds the keys without the bytes above it.
     burst() {
+        var shared = _shared_prefix();
+        var old_buckets = buckets;
+        var old_values = values;
+        _become_trie();
+        var node = this;
+        for (var byte in shared) {
+            var next = _HatNode<T>();
+            next._become_trie();
+            node.children[byte as ulong] = next;
+            node = next;
+        }
+        var target = node;
+        var skip = shared.count;
+        for (var bucket in old_buckets) {
+            _each(bucket, (key, length, index) => target._move(key + skip, length - skip, old_values[index]));
+        }
+    }
+
+    _become_trie() {
         children = Array<_HatNode<T>>();
         children.resize(256, __default<_HatNode<T>>());
-        for (var bucket in buckets) {
-            _each(bucket, (key, length, index) => _move(key, length, values[index]));
-        }
         buckets = __default<Array<u8[]>>();
         values = __default<Array<T>>();
         free = __default<Array<uint>>();
         size = 0;
     }
 
+    # The bytes every key of this container starts with.
+    _shared_prefix(): u8[] {
+        var shared = Array<u8>();
+        bool first = true;
+        for (var bucket in buckets) {
+            __ptr<u8> bytes = bucket.data();
+            ulong at = 0;
+            while (at < bucket.count) {
+                var (length, start) = _read_varint(bytes, at);
+                if (first) {
+                    shared.append_from(bytes + start, length);
+                    first = false;
+                } else {
+                    ulong same = 0;
+                    while (same < shared.count and same < length and shared[same] == bytes[start + same]) {
+                        same += 1;
+                    }
+                    shared.truncate(same);
+                }
+                var (index, end) = _read_varint(bytes, start + length);
+                at = end;
+            }
+        }
+        return shared;
+    }
+
+    # Puts a key of a burst container below this trie node.
     _move(key: __ptr<char>, length: ulong, moved: T) {
         if (length == 0) {
             has_value = true;

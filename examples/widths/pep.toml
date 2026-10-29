@@ -1,0 +1,15 @@
+[package]
+name = "widths"
+version = "0.1.0"
+description = "Example: a StaticTrie of display widths, built by a build script"
+license = "Apache-2.0"
+
+[build]
+entry = "main.pep"
+
+# The build script builds the trie; the generated module names its type.
+[build-dependencies]
+trie = { path = "../.." }
+
+[dependencies]
+trie = { path = "../.." }
