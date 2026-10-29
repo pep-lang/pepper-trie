@@ -24,9 +24,13 @@
 
 import "code_point_trie";
 import "code_point_trie_builder";
+import "hat_trie";
 
 export CodePointTrie;
 export CodePointTrieBuilder;
 export CodePointTrieData;
 export CodePointTrieKind;
+export DEFAULT_BURST_THRESHOLD;
+export HatTrie;
+export HatTrieIterator;
 export MAX_CODE_POINT;
