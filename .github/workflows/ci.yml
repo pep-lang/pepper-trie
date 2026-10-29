@@ -1,0 +1,160 @@
+# Tests the package on each push to main and each pull request, and on a
+# vX.Y.Z tag also publishes a GitHub release for that tag and its
+# reference on the gh-pages branch, for GitHub Pages. Runs on
+# GitHub-hosted runners with the newest published Pepper toolchain,
+# installed with pep-lang/pepper's install scripts as a user installs it.
+#
+# Release: set `version` in pep.toml, merge, then
+#   git tag v1.0.0 && git push origin v1.0.0
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Pepper (Unix)
+        if: runner.os != 'Windows'
+        # The installer lists releases through the API; unauthenticated, macOS runners hit its rate limit (403).
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl -fsSL https://raw.githubusercontent.com/pep-lang/pepper/main/scripts/install.sh | sh
+          echo "$HOME/.pepper/bin" >> "$GITHUB_PATH"
+
+      - name: Install Pepper (Windows)
+        if: runner.os == 'Windows'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          irm https://raw.githubusercontent.com/pep-lang/pepper/main/scripts/install.ps1 | iex
+          "$env:LOCALAPPDATA\pepper\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+      - name: Test
+        shell: bash
+        # Fail when pep.lock is out of date with pep.toml, rather than build
+        # what a fresh resolve picks. The variable, not `--locked`: a
+        # toolchain without the option ignores it.
+        env:
+          PEPPER_LOCKED: '1'
+        run: bash tests/run.sh
+
+  # Tests with the toolchain pep.toml's `minimum_toolchain` names, so the
+  # minimum it states stays true; does nothing when it names none.
+  minimum-toolchain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read the minimum
+        id: minimum
+        run: |
+          set -euo pipefail
+          minimum="$(sed -nE 's/^minimum_toolchain *= *"([^"]+)".*/\1/p' pep.toml | head -1)"
+          echo "version=$minimum" >> "$GITHUB_OUTPUT"
+          [ -n "$minimum" ] || echo "pep.toml names no minimum_toolchain: nothing to check"
+
+      - name: Install Pepper at the minimum
+        if: steps.minimum.outputs.version != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MINIMUM: ${{ steps.minimum.outputs.version }}
+        run: |
+          set -euo pipefail
+          curl -fsSL https://raw.githubusercontent.com/pep-lang/pepper/main/scripts/install.sh | sh -s -- --version "$MINIMUM"
+          echo "$HOME/.pepper/bin" >> "$GITHUB_PATH"
+
+      - name: Test
+        if: steps.minimum.outputs.version != ''
+        # Over any `toolchain` in pep.toml.
+        env:
+          PEPPER_TOOLCHAIN: ${{ steps.minimum.outputs.version }}
+          PEPPER_LOCKED: '1'
+        run: bash tests/run.sh
+
+  release:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # The tag must match pep.toml's version, so a release never names a
+      # version its manifest doesn't.
+      - name: Check the version
+        run: |
+          set -euo pipefail
+          want="$(sed -nE 's/^version *= *"([^"]+)".*/\1/p' pep.toml | head -1)"
+          [ "v$want" = "$GITHUB_REF_NAME" ] || { echo "::error::tag $GITHUB_REF_NAME but pep.toml says $want"; exit 1; }
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+
+  # Adds the release's reference (`pepper doc package`) to the gh-pages
+  # branch, a folder per version, which GitHub Pages serves once it is
+  # turned on for that branch (Settings, Pages).
+  docs:
+    needs: release
+    # One at a time, so two tags pushed together both reach gh-pages.
+    concurrency:
+      group: gh-pages
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Pepper and mdBook
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MDBOOK_VERSION: v0.4.52
+        run: |
+          set -euo pipefail
+          curl -fsSL https://raw.githubusercontent.com/pep-lang/pepper/main/scripts/install.sh | sh
+          echo "$HOME/.pepper/bin" >> "$GITHUB_PATH"
+          mkdir -p "$RUNNER_TEMP/mdbook"
+          curl -fsSL "https://github.com/rust-lang/mdBook/releases/download/$MDBOOK_VERSION/mdbook-$MDBOOK_VERSION-x86_64-unknown-linux-gnu.tar.gz" | tar -xz -C "$RUNNER_TEMP/mdbook"
+          echo "$RUNNER_TEMP/mdbook" >> "$GITHUB_PATH"
+
+      - name: Publish the reference
+        run: |
+          set -euo pipefail
+          site="$RUNNER_TEMP/site"
+          if git ls-remote --exit-code --heads origin gh-pages; then
+            git fetch --depth 1 origin gh-pages
+            git worktree add --detach "$site" FETCH_HEAD
+          else
+            git worktree add --orphan -b gh-pages "$site"
+          fi
+          pepper doc package --site "$site"
+          git -C "$site" add -A
+          # A re-run for a tag already published has nothing to commit.
+          git -C "$site" diff --cached --quiet && exit 0
+          git -C "$site" -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -m "Reference for $GITHUB_REF_NAME"
+          git -C "$site" push origin HEAD:gh-pages
