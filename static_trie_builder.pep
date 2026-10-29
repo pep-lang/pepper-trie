@@ -1,84 +1,80 @@
-## `CodePointTrieBuilder`: builds a `CodePointTrie` from code point ranges
-## and their values, at generation time, and writes it as Pepper source.
+## `StaticTrieBuilder`: builds a `StaticTrie` from key ranges and their
+## values, in a build script or a generator, and writes it as Pepper source.
 
-import "code_point_trie";
-
-## The largest code point.
-export const MAX_CODE_POINT: uint = 0x10FFFF;
+import "static_trie";
 
 # The bits each byte of the data carries (pep-lang/pepper#298).
 const _DIGIT_BITS: uint = 7;
 const _HEX = "0123456789ABCDEF";
 
-## Which layout `CodePointTrieBuilder.build` writes, as ICU's
+## Which layout `StaticTrieBuilder.build` writes, as ICU's
 ## `UCPTRIE_TYPE_FAST` and `UCPTRIE_TYPE_SMALL`.
-export enum CodePointTrieKind {
-    ## A flat index for the whole BMP: two reads below U+10000, and a larger
-    ## index (1024 entries).
+export enum StaticTrieKind {
+    ## A flat index below 0x10000 (the BMP, for code points): two reads
+    ## there, and a larger index (1024 entries).
     Fast,
-    ## A flat index only below U+1000: two reads there, three above, and a
+    ## A flat index only below 0x1000: two reads there, three above, and a
     ## smaller index.
     Small,
 }
 
-## Builds a `CodePointTrie`: set values for code points and ranges, then
+## Builds a `StaticTrie`: set values for keys and ranges of keys, then
 ## `build` it.
 ##
-## Holds a value for each of the 0x110000 code points (4.4 MB), so it is for
-## generators, not for programs that read the trie. `build` merges equal
+## Holds a value for each of the 0x110000 keys (4.4 MB), so it is for build
+## scripts and generators, not for the programs that read the trie. `build` merges equal
 ## data blocks and equal index blocks, and overlaps each new block with the
 ## end of the one before where they agree, as ICU's builder does.
 ##
 ## @example
 ##     import trie;
 ##
-##     var builder = trie.CodePointTrieBuilder(1);
+##     var builder = trie.StaticTrieBuilder(1);
 ##     builder.set_range(0x1100, 0x115F, 2);
 ##     builder.set(0x200B, 0);
 ##     var data = builder.build();
 ##     var widths = data.reader<u8>();      # widths.get(0x1100) == 2
-##     print(data.source("u8"));             # trie.CodePointTrie<u8>("...", ...)
-export struct CodePointTrieBuilder {
+##     print(data.source("u8"));             # trie.StaticTrie<u8>("...", ...)
+export struct StaticTrieBuilder {
     var _values: uint[];
 
-    ## Makes a builder in which every code point has `initial_value`.
+    ## Makes a builder in which every key has `initial_value`.
     ##
-    ## @param initial_value the value of every code point until one is set
+    ## @param initial_value the value of every key until one is set
     construct(initial_value: uint = 0) {
         _values = Array<uint>();
-        _values.resize((MAX_CODE_POINT + 1) as ulong, initial_value);
+        _values.resize((MAX_KEY + 1) as ulong, initial_value);
     }
 
-    ## Returns the value set for `cp` so far.
+    ## Returns the value set for `key` so far.
     ##
-    ## @param cp the code point
+    ## @param key the key
     ## @returns its value
-    ## @panics if `cp` is past 0x10FFFF
-    get(cp: uint): uint {
-        assert(cp <= MAX_CODE_POINT, "CodePointTrieBuilder: code point past 0x10FFFF");
-        return _values[cp as ulong];
+    ## @panics if `key` is past `MAX_KEY`
+    get(key: uint): uint {
+        assert(key <= MAX_KEY, "StaticTrieBuilder: key past MAX_KEY");
+        return _values[key as ulong];
     }
 
-    ## Sets the value of `cp`.
+    ## Sets the value of `key`.
     ##
-    ## @param cp the code point
+    ## @param key the key
     ## @param value its value
-    ## @panics if `cp` is past 0x10FFFF
-    set(cp: uint, value: uint) {
-        assert(cp <= MAX_CODE_POINT, "CodePointTrieBuilder: code point past 0x10FFFF");
-        _values[cp as ulong] = value;
+    ## @panics if `key` is past `MAX_KEY`
+    set(key: uint, value: uint) {
+        assert(key <= MAX_KEY, "StaticTrieBuilder: key past MAX_KEY");
+        _values[key as ulong] = value;
     }
 
-    ## Sets the value of every code point from `first` to `last`, both
-    ## included.
+    ## Sets the value of every key from `first` to `last`, both included.
     ##
-    ## @param first the first code point of the range
-    ## @param last the last code point of the range
+    ## @param first the first key of the range
+    ## @param last the last key of the range
     ## @param value their value
-    ## @panics if `last` is past 0x10FFFF or `first` is past `last`
+    ## @panics if `last` is past `MAX_KEY` or `first` is past `last`
     set_range(first: uint, last: uint, value: uint) {
-        assert(last <= MAX_CODE_POINT, "CodePointTrieBuilder: code point past 0x10FFFF");
-        assert(first <= last, "CodePointTrieBuilder: range ends before it starts");
+        assert(last <= MAX_KEY, "StaticTrieBuilder: key past MAX_KEY");
+        assert(first <= last, "StaticTrieBuilder: range ends before it starts");
         for (var cp in first as ulong..last as ulong + 1) {
             _values[cp] = value;
         }
@@ -88,12 +84,12 @@ export struct CodePointTrieBuilder {
     ## again after more changes.
     ##
     ## @param kind the layout: `Fast` (the default) or `Small`
-    ## @returns the data, which `CodePointTrieData.source` writes as Pepper
-    ##   source and `CodePointTrieData.reader` reads
-    build(kind: CodePointTrieKind = CodePointTrieKind.Fast): CodePointTrieData {
-        uint fast_limit = kind == CodePointTrieKind.Fast ? 0x10000 : 0x1000;
-        var high_value = _values[MAX_CODE_POINT as ulong];
-        ulong last = MAX_CODE_POINT as ulong;
+    ## @returns the data, which `StaticTrieData.source` writes as Pepper
+    ##   source and `StaticTrieData.reader` reads
+    build(kind: StaticTrieKind = StaticTrieKind.Fast): StaticTrieData {
+        uint fast_limit = kind == StaticTrieKind.Fast ? 0x10000 : 0x1000;
+        var high_value = _values[MAX_KEY as ulong];
+        ulong last = MAX_KEY as ulong;
         while (last > 0 and _values[last] == high_value) {
             last -= 1;
         }
@@ -103,7 +99,8 @@ export struct CodePointTrieBuilder {
         }
 
         var data = _Blocks();
-        # ASCII first and in order, so the reader finds it at data entry `cp`.
+        # Keys below 0x80 first and in order, so the reader finds them at data
+        # entry `key`.
         for (var cp in 0..128) {
             data.entries.append(_values[cp]);
         }
@@ -139,7 +136,7 @@ export struct CodePointTrieBuilder {
         for (var entry in data.entries) {
             max_value = entry > max_value ? entry : max_value;
         }
-        var result = CodePointTrieData();
+        var result = StaticTrieData();
         result.value_digits = _digits(max_value as ulong);
         result.index_digits = _digits(max_index);
         result.fast_limit = fast_limit;
@@ -158,27 +155,27 @@ export struct CodePointTrieBuilder {
     }
 }
 
-## The data `CodePointTrieBuilder.build` made: the bytes and the parameters
-## a `CodePointTrie` reads them with.
-export struct CodePointTrieData {
+## The data `StaticTrieBuilder.build` made: the bytes and the parameters
+## a `StaticTrie` reads them with.
+export struct StaticTrieData {
     ## The bytes, each 0 to 0x7F: the index entries, then the data entries.
     var bytes: u8[];
     ## The bytes of each data entry.
     var value_digits: ulong;
     ## The bytes of each index entry.
     var index_digits: ulong;
-    ## The code point the flat index stops at.
+    ## The key the flat index stops at.
     var fast_limit: uint;
     ## Where the run of `high_value` at the top starts.
     var high_start: uint;
-    ## The value of every code point from `high_start` up.
+    ## The value of every key from `high_start` up.
     var high_value: uint;
     ## The number of index entries.
     var index_length: ulong;
     # The bytes as text, which `reader` points into.
     var _text: String;
 
-    ## Makes empty data; `CodePointTrieBuilder.build` fills it in.
+    ## Makes empty data; `StaticTrieBuilder.build` fills it in.
     construct() {
         bytes = Array<u8>();
     }
@@ -190,9 +187,9 @@ export struct CodePointTrieData {
     ##
     ## @typeParam T the value type; every value must fit in it
     ## @returns the trie
-    reader<T>(): CodePointTrie<T> {
+    reader<T>(): StaticTrie<T> {
         _text = String(unsafe_cast<__ptr<char>>(bytes.data()), bytes.count);
-        return CodePointTrie<T>(
+        return StaticTrie<T>(
             StringConstant(_text.c_str(), _text.size, _text.length),
             value_digits,
             index_digits,
@@ -206,7 +203,7 @@ export struct CodePointTrieData {
     ## Returns the Pepper expression that makes this trie from literals, for
     ## a generator to write after `const NAME = `; the program that reads it
     ## then holds the bytes as static data. It names the type as
-    ## `trie.CodePointTrie`, so that file imports `trie`.
+    ## `trie.StaticTrie`, so that file imports `trie`.
     ##
     ## The string is one line. Bytes from space to `~` are written as they
     ## are (with `"` and `\` escaped), the rest as `\x` escapes.
@@ -232,7 +229,7 @@ export struct CodePointTrieData {
         }
         var literal = text.count == 0 ? "" : String(unsafe_cast<__ptr<char>>(text.data()), text.count);
         var arguments = $"{value_digits}, {index_digits}, {fast_limit}, {high_start}, {high_value}, {index_length}";
-        return $"trie.CodePointTrie<{value_type}>(\"{literal}\", {arguments})";
+        return $"trie.StaticTrie<{value_type}>(\"{literal}\", {arguments})";
     }
 }
 

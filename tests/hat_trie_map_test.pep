@@ -1,22 +1,11 @@
-# HatTrie checked against the runtime's sorted Map.
+# HatTrieMap checked against the runtime's sorted Map.
 
 import random;
 import trie;
-
-# A random key: a few bytes from a small alphabet, so keys share prefixes,
-# with some multi-byte code points.
-_random_key(generator: random.Generator): String {
-    const LETTERS = "abcde\u{E9}\u{4E2D}";
-    var out = StringBuilder();
-    var size = generator.next_int(0..9);
-    for (var i in 0..size) {
-        out.append(LETTERS[generator.next_int(0..7) as ulong]);
-    }
-    return out.to_string();
-}
+import "keys";
 
 # Every entry of `trie`, in order, is the entry of `expected` in the same place.
-_expect_same(actual: trie.HatTrie<int>, expected: Map<String, int>) {
+_expect_same(actual: trie.HatTrieMap<int>, expected: Map<String, int>) {
     expect_equal(actual.count, expected.count as ulong);
     var keys = Array<String>();
     var values = Array<int>();
@@ -36,7 +25,7 @@ _expect_same(actual: trie.HatTrie<int>, expected: Map<String, int>) {
     expect_true(same);
 }
 
-_expect_prefix(actual: trie.HatTrie<int>, expected: Map<String, int>, prefix: String) {
+_expect_prefix(actual: trie.HatTrieMap<int>, expected: Map<String, int>, prefix: String) {
     var got = Array<String>();
     for (var (key, value) in actual.with_prefix(prefix)) {
         got.append(key);
@@ -60,7 +49,7 @@ _expect_prefix(actual: trie.HatTrie<int>, expected: Map<String, int>, prefix: St
 
 [Test]
 an_empty_trie_has_nothing() {
-    var t = trie.HatTrie<int>();
+    var t = trie.HatTrieMap<int>();
     expect_equal(t.count, 0 as ulong);
     expect_false(t.contains(""));
     expect_equal(t.get("x"), 0);
@@ -72,7 +61,7 @@ an_empty_trie_has_nothing() {
 [Test]
 the_empty_key_is_a_key() {
     for (var threshold in [4 as ulong, 16384 as ulong]) {
-        var t = trie.HatTrie<int>(threshold);
+        var t = trie.HatTrieMap<int>(threshold);
         t[""] = 5;
         for (var i in 0..100) {
             t[$"k{i}"] = i;
@@ -90,7 +79,7 @@ the_empty_key_is_a_key() {
 
 [Test]
 insert_replaces_and_reports() {
-    var t = trie.HatTrie<String>();
+    var t = trie.HatTrieMap<String>();
     expect_true(t.insert("a", "one"));
     expect_false(t.insert("a", "two"));
     expect_equal(t["a"], "two");
@@ -102,10 +91,10 @@ insert_replaces_and_reports() {
 random_keys_match_a_map() {
     for (var threshold in [4 as ulong, 64 as ulong, 16384 as ulong]) {
         var generator = random.Generator(threshold);
-        var t = trie.HatTrie<int>(threshold);
+        var t = trie.HatTrieMap<int>(threshold);
         var expected = Map<String, int>();
         for (var step in 0..20000) {
-            var key = _random_key(generator);
+            var key = random_key(generator);
             if (generator.next_int(0..4) == 0) {
                 expect_equal(t.remove(key), expected.remove(key));
             } else {
@@ -116,7 +105,7 @@ random_keys_match_a_map() {
             expect_equal(t.get(key), value);
         }
         for (var i in 0..200) {
-            var key = _random_key(generator);
+            var key = random_key(generator);
             expect_equal(t.contains(key), expected.contains(key));
         }
         _expect_same(t, expected);
@@ -128,7 +117,7 @@ random_keys_match_a_map() {
 
 [Test]
 a_change_stops_an_iterator() {
-    var t = trie.HatTrie<int>();
+    var t = trie.HatTrieMap<int>();
     t["a"] = 1;
     var it = t.iterate();
     expect_true(it.next());
@@ -138,7 +127,7 @@ a_change_stops_an_iterator() {
 
 [Test]
 clear_empties_the_trie() {
-    var t = trie.HatTrie<int>(4);
+    var t = trie.HatTrieMap<int>(4);
     for (var i in 0..1000) {
         t[$"{i}"] = i;
     }

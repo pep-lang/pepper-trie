@@ -1,9 +1,9 @@
-## `HatTrie<T>`: a map from `String` keys to values, kept in key order, after
+## `HatTrieMap<T>`: a map from `String` keys to values, kept in key order, after
 ## Askitis and Sinha's HAT-trie.
 
 extern int memcmp(void* a, void* b, ulong n);
 
-## How many keys a container holds before `HatTrie` bursts it into a trie
+## How many keys a container holds before `HatTrieMap` bursts it into a trie
 ## node, unless the trie is made with another threshold.
 export const DEFAULT_BURST_THRESHOLD: ulong = 16384;
 
@@ -266,7 +266,7 @@ _key_string(path: u8[], rest: __ptr<char>, size: ulong): String {
 ##     import trie;
 ##
 ##     main(): int {
-##         var words = trie.HatTrie<int>();
+##         var words = trie.HatTrieMap<int>();
 ##         words["pepper"] = 1;
 ##         words["pear"] = 2;
 ##         words["apple"] = 3;
@@ -275,7 +275,7 @@ _key_string(path: u8[], rest: __ptr<char>, size: ulong): String {
 ##         }
 ##         return 0;
 ##     }
-export struct HatTrie<T> {
+export struct HatTrieMap<T> {
     var _root: _HatNode<T>;
     var _count: ulong;
     var _burst_threshold: ulong;
@@ -294,7 +294,7 @@ export struct HatTrie<T> {
     ##   bursts; at least 4
     ## @panics if `burst_threshold` is below 4
     construct(burst_threshold: ulong = DEFAULT_BURST_THRESHOLD) {
-        assert(burst_threshold >= 4, "HatTrie: the burst threshold must be at least 4");
+        assert(burst_threshold >= 4, "HatTrieMap: the burst threshold must be at least 4");
         _root = _HatNode<T>();
         _burst_threshold = burst_threshold;
     }
@@ -467,8 +467,8 @@ export struct HatTrie<T> {
     ## iterator's next `next()` panic.
     ##
     ## @returns an iterator positioned before the first entry
-    iterate(): HatTrieIterator<T> {
-        return HatTrieIterator<T>(this, _root, Array<u8>(), "", 0);
+    iterate(): HatTrieMapIterator<T> {
+        return HatTrieMapIterator<T>(this, _root, Array<u8>(), "", 0);
     }
 
     ## Returns an iterator over the entries whose key starts with `prefix`,
@@ -483,7 +483,7 @@ export struct HatTrie<T> {
     ##     for (var (key, value) in trie.with_prefix("app")) {
     ##         n += 1;
     ##     }
-    with_prefix(prefix: String): HatTrieIterator<T> {
+    with_prefix(prefix: String): HatTrieMapIterator<T> {
         __ptr<char> bytes = prefix.c_str();
         var node = _root;
         var path = Array<u8>();
@@ -491,24 +491,24 @@ export struct HatTrie<T> {
         while (node.is_trie() and depth < prefix.size) {
             node = node.children[(bytes[depth] as u8) as ulong];
             if (node === __null) {
-                return HatTrieIterator<T>(this, __default<_HatNode<T>>(), path, "", 0);
+                return HatTrieMapIterator<T>(this, __default<_HatNode<T>>(), path, "", 0);
             }
             path.append(bytes[depth] as u8);
             depth += 1;
         }
-        return HatTrieIterator<T>(this, node, path, prefix, depth);
+        return HatTrieMapIterator<T>(this, node, path, prefix, depth);
     }
 }
 
-## An `Iterator<(String, T)>` over a `HatTrie`'s entries in key order;
-## returned by `HatTrie.iterate` and `HatTrie.with_prefix`.
+## An `Iterator<(String, T)>` over a `HatTrieMap`'s entries in key order;
+## returned by `HatTrieMap.iterate` and `HatTrieMap.with_prefix`.
 ##
 ## It holds a reference to the trie and fails fast: adding or removing a key
 ## after it was made makes its next `next()` or `current()` panic.
 ##
 ## @typeParam T the trie's value type
-export struct HatTrieIterator<T> {
-    var _trie: HatTrie<T>;
+export struct HatTrieMapIterator<T> {
+    var _trie: HatTrieMap<T>;
     var _version: ulong;
     # The trie nodes from the start down to the current one, and the next
     # byte to try at each.
@@ -523,15 +523,15 @@ export struct HatTrieIterator<T> {
     var _started: bool;
 
     ## Makes an iterator over the keys under `start`, which `path` leads to,
-    ## that start with `prefix`'s bytes from `depth` on. `HatTrie.iterate`
-    ## and `HatTrie.with_prefix` call it.
+    ## that start with `prefix`'s bytes from `depth` on. `HatTrieMap.iterate`
+    ## and `HatTrieMap.with_prefix` call it.
     ##
     ## @param trie the trie
     ## @param start the node to start at; null for no entries
     ## @param path the bytes that lead to `start`
     ## @param prefix the prefix searched for
     ## @param depth how many of `prefix`'s bytes `path` holds
-    construct(trie: HatTrie<T>, start: _HatNode<T>, path: u8[], prefix: String, depth: ulong) {
+    construct(trie: HatTrieMap<T>, start: _HatNode<T>, path: u8[], prefix: String, depth: ulong) {
         _trie = trie;
         _version = trie._version;
         _nodes = Array<_HatNode<T>>();
@@ -552,9 +552,9 @@ export struct HatTrieIterator<T> {
     ## @returns true when there is a current entry, false once every entry
     ##   was visited
     ## @panics if a key was added or removed since the iterator was made
-    ##   ("HatTrie modified during iteration")
+    ##   ("HatTrieMap modified during iteration")
     next(): bool {
-        assert(_trie._version == _version, "HatTrie modified during iteration");
+        assert(_trie._version == _version, "HatTrieMap modified during iteration");
         if (_started) {
             _at += 1;
         }
@@ -574,12 +574,12 @@ export struct HatTrieIterator<T> {
     ##
     ## @returns the current entry as a `(key, value)` tuple
     ## @panics if a key was added or removed since the iterator was made
-    ##   ("HatTrie modified during iteration")
+    ##   ("HatTrieMap modified during iteration")
     ## @panics if `next()` was not called or returned false
-    ##   ("HatTrieIterator.current() without an entry")
+    ##   ("HatTrieMapIterator.current() without an entry")
     current(): (String, T) {
-        assert(_trie._version == _version, "HatTrie modified during iteration");
-        assert(_started and _at < _entries.count, "HatTrieIterator.current() without an entry");
+        assert(_trie._version == _version, "HatTrieMap modified during iteration");
+        assert(_started and _at < _entries.count, "HatTrieMapIterator.current() without an entry");
         return _entries[_at];
     }
 
