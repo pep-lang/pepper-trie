@@ -123,3 +123,25 @@ source_writes_a_constant_expression() {
     expect_false(source.contains("\n"));
     expect_true(source.ends_with(", 1, 1, 65536, 65536, 0, 1024)"));
 }
+
+[Test]
+readers_outlive_their_data() {
+    var builder = trie.StaticTrieBuilder(3);
+    builder.set_range(0x100, 0x1FF, 9);
+    # One reader from a temporary, two from one object: each keeps its bytes.
+    var from_temporary = builder.build().reader<u8>();
+    var data = builder.build();
+    var first = data.reader<u8>();
+    var second = data.reader<ushort>();
+    data = trie.StaticTrieData();
+    var noise = Array<String>();
+    for (var i in 0..10000) {
+        noise.append($"overwrite freed memory {i}");
+    }
+    for (var reader in [from_temporary, first]) {
+        expect_equal(reader.get(0x41), 3 as u8);
+        expect_equal(reader.get(0x150), 9 as u8);
+    }
+    expect_equal(second.get(0x150), 9 as ushort);
+    expect_equal(noise.count, 10000 as ulong);
+}

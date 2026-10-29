@@ -3,6 +3,9 @@
 
 import "static_trie";
 
+extern void* malloc(ulong size);
+extern void memcpy(void* destination, void* source, ulong size);
+
 # The bits each byte of the data carries (pep-lang/pepper#298).
 const _DIGIT_BITS: uint = 7;
 const _HEX = "0123456789ABCDEF";
@@ -98,7 +101,7 @@ export struct StaticTrieBuilder {
             high_start = fast_limit;
         }
 
-        var data = _Blocks();
+        var data = _Blocks(true);
         # Keys below 0x80 first and in order, so the reader finds them at data
         # entry `key`.
         for (var cp in 0..128) {
@@ -113,7 +116,7 @@ export struct StaticTrieBuilder {
         }
         var index1_count = ((high_start - fast_limit) / 1024) as ulong;
         var index2_start = index.count + index1_count;
-        var index2 = _Blocks();
+        var index2 = _Blocks(false);
         var index1 = Array<ulong>();
         for (var chunk in 0..index1_count) {
             var first = fast_limit as ulong + chunk * 1024;
@@ -172,8 +175,6 @@ export struct StaticTrieData {
     var high_value: uint;
     ## The number of index entries.
     var index_length: ulong;
-    # The bytes as text, which `reader` points into.
-    var _text: String;
 
     ## Makes empty data; `StaticTrieBuilder.build` fills it in.
     construct() {
@@ -181,16 +182,20 @@ export struct StaticTrieData {
     }
 
     ## Returns a trie that reads these bytes at run time, for data built in
-    ## the same program (a test, or a table built at startup). It points into
-    ## this object, which must outlive it and not change. A generator
-    ## writes `source()` instead, which needs no such care.
+    ## the same program (a test, or a table built at startup). It copies the
+    ## bytes into memory that is never freed, as a string literal's bytes
+    ## are not, so the trie outlives this object: make a reader once per
+    ## table, not per lookup. A generator writes `source()` instead.
     ##
     ## @typeParam T the value type; every value must fit in it
     ## @returns the trie
     reader<T>(): StaticTrie<T> {
-        _text = String(unsafe_cast<__ptr<char>>(bytes.data()), bytes.count);
+        __ptr<char> copy = malloc(bytes.count + 1);
+        memcpy(copy, bytes.data(), bytes.count);
+        copy[bytes.count] = 0;
+        # Every byte is ASCII, so the size is the length.
         return StaticTrie<T>(
-            StringConstant(_text.c_str(), _text.size, _text.length),
+            StringConstant(copy, bytes.count, bytes.count),
             value_digits,
             index_digits,
             fast_limit,
@@ -227,7 +232,7 @@ export struct StaticTrieData {
                 text.append(_HEX.byte_at((b & 15) as ulong) as u8);
             }
         }
-        var literal = text.count == 0 ? "" : String(unsafe_cast<__ptr<char>>(text.data()), text.count);
+        var literal = String(unsafe_cast<__ptr<char>>(text.data()), text.count);
         var arguments = $"{value_digits}, {index_digits}, {fast_limit}, {high_start}, {high_value}, {index_length}";
         return $"trie.StaticTrie<{value_type}>(\"{literal}\", {arguments})";
     }
@@ -239,10 +244,14 @@ struct _Blocks {
     var entries: uint[];
     # Each placed block's text (`_key`), and where it starts.
     var _starts: HashMap<String, ulong>;
+    # Whether 16-entry blocks are looked up inside larger ones (data blocks
+    # are; index-2 blocks never are).
+    var _sub_blocks: bool;
 
-    construct() {
+    construct(sub_blocks: bool) {
         entries = Array<uint>();
         _starts = HashMap<String, ulong>();
+        _sub_blocks = sub_blocks;
     }
 
     # Where `size` entries of `source` from `first` start in `entries`,
@@ -268,7 +277,7 @@ struct _Blocks {
     # and each 16-entry block in them.
     remember(source: uint[], first: ulong, start: ulong, size: ulong) {
         _starts[_key(source, first, size)] = start;
-        if (size > 16) {
+        if (_sub_blocks and size > 16) {
             for (var part in 0..size / 16) {
                 var key = _key(source, first + part * 16, 16);
                 if (!_starts.contains(key)) {

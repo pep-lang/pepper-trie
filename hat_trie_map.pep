@@ -45,27 +45,18 @@ struct _HatNode<T> {
 
     # The value index of the `size` bytes at `key`, or -1.
     find(key: __ptr<char>, size: ulong): long {
-        var bucket = buckets[_bucket_of(key, size, buckets.count)];
+        var bucket = _bucket(_pep_hash_bytes(key, size));
         var at = _scan(bucket, key, size);
-        if (at < 0) {
-            return -1;
-        }
-        __ptr<u8> bytes = bucket.data();
-        var (length, start) = _read_varint(bytes, at as ulong);
-        var (index, end) = _read_varint(bytes, start + length);
-        return index as long;
+        return at < 0 ? -1 : _index_at(bucket, at as ulong) as long;
     }
 
     # Adds or replaces the value of the `size` bytes at `key`; true when added.
     insert(key: __ptr<char>, size: ulong, value: T): bool {
         var hash = _pep_hash_bytes(key, size);
-        var bucket = buckets[(hash & (buckets.count - 1) as u64) as ulong];
+        var bucket = _bucket(hash);
         var at = _scan(bucket, key, size);
         if (at >= 0) {
-            __ptr<u8> bytes = bucket.data();
-            var (length, start) = _read_varint(bytes, at as ulong);
-            var (found, end) = _read_varint(bytes, start + length);
-            values[found] = value;
+            values[_index_at(bucket, at as ulong)] = value;
             return false;
         }
         ulong index;
@@ -78,7 +69,7 @@ struct _HatNode<T> {
         }
         if (this.size + 1 > buckets.count * _BUCKET_LOAD) {
             _rehash(buckets.count * 2);
-            bucket = buckets[(hash & (buckets.count - 1) as u64) as ulong];
+            bucket = _bucket(hash);
         }
         _write_entry(bucket, key, size, index);
         return true;
@@ -86,14 +77,14 @@ struct _HatNode<T> {
 
     # Removes the `size` bytes at `key`; true when they were there.
     remove(key: __ptr<char>, size: ulong): bool {
-        var bucket = buckets[_bucket_of(key, size, buckets.count)];
+        var bucket = _bucket(_pep_hash_bytes(key, size));
         var at = _scan(bucket, key, size);
         if (at < 0) {
             return false;
         }
-        __ptr<u8> bytes = bucket.data();
-        var (length, start) = _read_varint(bytes, at as ulong);
-        var (index, end) = _read_varint(bytes, start + length);
+        var index = _index_at(bucket, at as ulong);
+        var (length, start) = _read_varint(bucket.data(), at as ulong);
+        var (skipped, end) = _read_varint(bucket.data(), start + length);
         bucket.drain(at as ulong, end);
         values[index] = __default<T>();
         free.append(index as uint);
@@ -101,9 +92,13 @@ struct _HatNode<T> {
         return true;
     }
 
+    _bucket(hash: u64): u8[] {
+        return buckets[(hash & (buckets.count - 1) as u64) as ulong];
+    }
+
     # Appends an entry for a key known to be absent.
     _append(key: __ptr<char>, size: ulong, index: ulong) {
-        _write_entry(buckets[_bucket_of(key, size, buckets.count)], key, size, index);
+        _write_entry(_bucket(_pep_hash_bytes(key, size)), key, size, index);
     }
 
     _write_entry(bucket: u8[], key: __ptr<char>, size: ulong, index: ulong) {
@@ -259,8 +254,12 @@ _scan(bucket: u8[], key: __ptr<char>, size: ulong): long {
     return -1;
 }
 
-_bucket_of(key: __ptr<char>, size: ulong, count: ulong): ulong {
-    return (_pep_hash_bytes(key, size) & (count - 1) as u64) as ulong;
+# The value index of the entry at offset `at` of `bucket`.
+_index_at(bucket: u8[], at: ulong): ulong {
+    __ptr<u8> bytes = bucket.data();
+    var (length, start) = _read_varint(bytes, at);
+    var (index, end) = _read_varint(bytes, start + length);
+    return index;
 }
 
 # The varint at `at`, and the offset after it.
