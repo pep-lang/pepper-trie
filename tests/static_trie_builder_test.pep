@@ -70,7 +70,7 @@ value_widths_round_trip() {
     builder.set(0x3000, 0xFFFF);
     builder.set(0x20000, 0xFFFFFFFF);
     var data = builder.build();
-    expect_equal(data.value_digits, 5 as ulong);
+    expect_equal(data.value_digits, 4 as ulong);
     expect_equal(data.reader<u8>().get(0x41), 0xFF as u8);
     expect_equal(data.reader<ushort>().get(0x3000), 0xFFFF as ushort);
     expect_equal(data.reader<uint>().get(0x20000), 0xFFFFFFFF as uint);
@@ -144,4 +144,14 @@ readers_outlive_their_data() {
     }
     expect_equal(second.get(0x150), 9 as ushort);
     expect_equal(noise.count, 10000 as ulong);
+}
+
+[Test]
+byte_literal_writes_every_byte() {
+    var bytes = Array<u8>();
+    for (var b in [0x00, 0x41, 0x22, 0x5C, 0x7F, 0x80, 0xFF]) {
+        bytes.append(b as u8);
+    }
+    # "\x00A\"\\\x7F\x80\xFF", with its quotes.
+    expect_equal(trie.byte_literal(bytes), "\"\\x00A\\\"\\\\\\x7F\\x80\\xFF\"");
 }

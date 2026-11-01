@@ -89,7 +89,9 @@ main(): int {
 The build runs the script again only when what it reads changes (a
 `pep:rerun-if-changed=` line names its data files), so a rebuild costs
 nothing. `StaticTrieData.reader<T>()` reads a trie built in the same
-program, for tests and for tables built at startup.
+program, for tests and for tables built at startup. A script that packs
+other raw bytes beside a trie writes them with `trie.byte_literal(bytes)`,
+the string literal `source` uses.
 
 ## How it works
 
@@ -98,10 +100,8 @@ below `fast_limit` (0x10000 for `StaticTrieKind.Fast`, 0x1000 for
 `Small`), found through a flat index, and in blocks of 16 above it, found
 through two index levels; keys from `high_start` up all have
 `high_value`. The builder stores each distinct block once and overlaps a
-new block with the end of the one before where they agree. A string
-literal holds only bytes up to 0x7F as static data
-([pep-lang/pepper#298](https://github.com/pep-lang/pepper/issues/298)), so
-every byte carries 7 bits, and an entry takes 1 to 5 bytes.
+new block with the end of the one before where they agree. An entry
+takes 1 to 4 bytes, low bits first.
 
 **HatTrieMap**, after Askitis and Sinha's HAT-trie ("HAT-trie: A
 Cache-conscious Trie-based Data Structure for Strings", ACSC 2007) and
@@ -159,8 +159,7 @@ Use a `HashMap` when only lookups matter and memory does not; a
 
 ## Limits
 
-- `StaticTrie` keys stop at 0x10FFFF, and its data takes 7 bits a byte
-  until Pepper can hold raw bytes as static data (pep-lang/pepper#298).
+- `StaticTrie` keys stop at 0x10FFFF.
 - `HatTrieMap` and `HatTrieSet` keep trie nodes when their keys are
   removed (`clear` frees them), and copy keys into the containers, so
   iterating makes a new `String` for each key. It is the pure HAT-trie,
