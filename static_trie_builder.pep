@@ -6,8 +6,6 @@ import "static_trie";
 extern void* malloc(ulong size);
 extern void memcpy(void* destination, void* source, ulong size);
 
-# The bits each byte of the data carries (pep-lang/pepper#298).
-const _DIGIT_BITS: uint = 7;
 const _HEX = "0123456789ABCDEF";
 
 ## Which layout `StaticTrieBuilder.build` writes, as ICU's
@@ -161,7 +159,7 @@ export struct StaticTrieBuilder {
 ## The data `StaticTrieBuilder.build` made: the bytes and the parameters
 ## a `StaticTrie` reads them with.
 export struct StaticTrieData {
-    ## The bytes, each 0 to 0x7F: the index entries, then the data entries.
+    ## The bytes: the index entries, then the data entries.
     var bytes: u8[];
     ## The bytes of each data entry.
     var value_digits: ulong;
@@ -193,9 +191,9 @@ export struct StaticTrieData {
         __ptr<char> copy = malloc(bytes.count + 1);
         memcpy(copy, bytes.data(), bytes.count);
         copy[bytes.count] = 0;
-        # Every byte is ASCII, so the size is the length.
+        # The bytes are not UTF-8: no length.
         return StaticTrie<T>(
-            StringConstant(copy, bytes.count, bytes.count),
+            StringConstant(copy, bytes.count, 0),
             value_digits,
             index_digits,
             fast_limit,
@@ -210,32 +208,47 @@ export struct StaticTrieData {
     ## then holds the bytes as static data. It names the type as
     ## `trie.StaticTrie`, so that file imports `trie`.
     ##
-    ## The string is one line. Bytes from space to `~` are written as they
-    ## are (with `"` and `\` escaped), the rest as `\x` escapes.
+    ## The string is one line; the bytes are written as `byte_literal`
+    ## writes them.
     ##
     ## @param value_type the trie's value type, such as `"u8"`
     ## @returns the expression
     ## @example
     ##     var line = $"const _WIDTH = {data.source("u8")};";
     source(value_type: String): String {
-        var text = Array<u8>();
-        for (var b in bytes) {
-            if (b == '"' as u8 or b == '\\' as u8) {
-                text.append('\\' as u8);
-                text.append(b);
-            } else if (b >= 0x20 and b < 0x7F) {
-                text.append(b);
-            } else {
-                text.append('\\' as u8);
-                text.append('x' as u8);
-                text.append(_HEX.byte_at((b >> 4) as ulong) as u8);
-                text.append(_HEX.byte_at((b & 15) as ulong) as u8);
-            }
-        }
-        var literal = String(unsafe_cast<__ptr<char>>(text.data()), text.count);
         var arguments = $"{value_digits}, {index_digits}, {fast_limit}, {high_start}, {high_value}, {index_length}";
-        return $"trie.StaticTrie<{value_type}>(\"{literal}\", {arguments})";
+        return $"trie.StaticTrie<{value_type}>({byte_literal(bytes)}, {arguments})";
     }
+}
+
+## Returns `bytes` as a Pepper string literal, quotes included, for a
+## generator that writes raw bytes as a `StringConstant`, as `source` does
+## a trie's. Bytes from space to `~` are written as they are (with `"` and
+## `\` escaped), the rest as `\x` escapes; reading bytes from 0x80 up needs
+## Pepper 0.12 or later.
+##
+## @param bytes the bytes
+## @returns the literal, on one line
+## @example
+##     var line = $"const _DATA: StringConstant = {trie.byte_literal(data)};";
+export byte_literal(bytes: u8[]): String {
+    var text = Array<u8>();
+    text.append('"' as u8);
+    for (var b in bytes) {
+        if (b == '"' as u8 or b == '\\' as u8) {
+            text.append('\\' as u8);
+            text.append(b);
+        } else if (b >= 0x20 and b < 0x7F) {
+            text.append(b);
+        } else {
+            text.append('\\' as u8);
+            text.append('x' as u8);
+            text.append(_HEX.byte_at((b >> 4) as ulong) as u8);
+            text.append(_HEX.byte_at((b & 15) as ulong) as u8);
+        }
+    }
+    text.append('"' as u8);
+    return String(unsafe_cast<__ptr<char>>(text.data()), text.count);
 }
 
 # A growing array of entries that places blocks of them, reusing an equal
@@ -311,18 +324,18 @@ struct _Blocks {
     }
 }
 
-# The 7-bit bytes `value` takes, at least 1.
+# The bytes `value` takes, at least 1.
 _digits(value: ulong): ulong {
     ulong digits = 1;
-    while (value >> (_DIGIT_BITS * digits as uint) != 0) {
+    while (value >> (8 * digits as uint) != 0) {
         digits += 1;
     }
     return digits;
 }
 
-# Appends `value` as `digits` 7-bit bytes, low bits first.
+# Appends `value` as `digits` bytes, low bits first.
 _put(bytes: u8[], value: ulong, digits: ulong) {
     for (var i in 0..digits) {
-        bytes.append(((value >> (_DIGIT_BITS * i as uint)) & 0x7F) as u8);
+        bytes.append(((value >> (8 * i as uint)) & 0xFF) as u8);
     }
 }

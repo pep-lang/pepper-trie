@@ -27,9 +27,8 @@ const _SMALL_MASK: uint = 15;
 ## Its data is one `StringConstant` that a `StaticTrieBuilder` wrote
 ## (`StaticTrieData.source`), so a `const` of a trie is static data: it
 ## costs only its bytes in the binary, no startup work, and nothing in a
-## program that never reads it. A string literal holds only bytes up to
-## 0x7F as static data (pep-lang/pepper#298), so each byte carries 7 bits,
-## and an entry takes one or more of them, low bits first.
+## program that never reads it. An entry takes one or more of its bytes,
+## low bits first.
 ##
 ## The layout follows ICU's `UCPTrie`:
 ##
@@ -133,14 +132,14 @@ export struct StaticTrie<T> {
         return _read(index_length * index_digits + at * value_digits, value_digits);
     }
 
-    # The `digits`-byte number at byte `at`, 7 bits a byte, low bits first.
+    # The `digits`-byte number at byte `at`, low bits first.
     _read(at: ulong, digits: ulong): uint {
-        __ptr<char> bytes = data.c_str();
+        var bytes = unsafe_cast<__ptr<u8>>(data.c_str());
         var value = bytes[at] as uint;
         if (digits > 1) {
-            value = value | ((bytes[at + 1] as uint) << 7);
+            value = value | ((bytes[at + 1] as uint) << 8);
             for (var i in 2..digits) {
-                value = value | ((bytes[at + i] as uint) << (7 * i) as uint);
+                value = value | ((bytes[at + i] as uint) << (8 * i) as uint);
             }
         }
         return value;

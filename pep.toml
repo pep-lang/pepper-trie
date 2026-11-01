@@ -1,11 +1,12 @@
 [package]
 name = "trie"
-version = "0.1.0"
+version = "0.2.0"
 description = "Compact tries: a static code point trie for Unicode tables, and a HAT-trie map from strings"
 license = "Apache-2.0"
 repository = "https://github.com/pep-lang/pepper-trie"
-# The oldest Pepper toolchain that builds the package (0.11 added
-# `[native]`): CI also tests with it, and `pepper package` skips a version
-# whose minimum is newer than the user's toolchain.
-minimum_toolchain = "0.11.0"
+# The oldest Pepper toolchain that builds the package (0.12 reads a string
+# literal's bytes from 0x80 up, pep-lang/pepper#298): CI also tests with
+# it, and `pepper package` skips a version whose minimum is newer than the
+# user's toolchain.
+minimum_toolchain = "0.12.0"
 

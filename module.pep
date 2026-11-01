@@ -31,6 +31,7 @@ export StaticTrie;
 export StaticTrieBuilder;
 export StaticTrieData;
 export StaticTrieKind;
+export byte_literal;
 export DEFAULT_BURST_THRESHOLD;
 export HatTrieMap;
 export HatTrieMapIterator;
